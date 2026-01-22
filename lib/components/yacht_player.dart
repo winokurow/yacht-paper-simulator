@@ -14,8 +14,6 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   // Переменная для хранения изображения бумажной лодки
   Sprite? yachtSprite;
 
-  static const double _spriteRotationOffset = pi / 2;
-
   // Состояние яхты
   double angularVelocity = 0.0;  // Скорость вращения (рад/с)
   double rudderAngle = 0.0;      // Угол руля (от -1.0 до 1.0)
@@ -45,26 +43,18 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   void render(Canvas canvas) {
     if (yachtSprite == null) return;
 
-    // 1. Подготавливаем краску для тени (та же логика с фильтром)
+    // 1. Подготавливаем краску для тени
     final shadowPaint = Paint()
       ..color = Colors.black.withOpacity(0.25)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0)
       ..colorFilter = const ColorFilter.mode(Colors.black, BlendMode.srcIn);
 
-    canvas.save(); // ЗАПОМИНАЕМ состояние
+    canvas.save();
 
-    // --- ОБЩАЯ ТРАНСФОРМАЦИЯ ДЛЯ ВСЕХ ЧАСТЕЙ ---
-    // Сначала переносим центр координат в центр нашей лодки
-    canvas.translate(size.x / 2, size.y / 2);
-    // Поворачиваем на 90 градусов, так как спрайт смотрит вверх, а нам нужно вправо
-    canvas.rotate(pi / 2);
-    // Возвращаем центр обратно (теперь (0,0) — это снова верхний левый угол, но уже повернутый)
-    canvas.translate(-size.x / 2, -size.y / 2);
-
-    // 2. РИСУЕМ ТЕНЬ (с небольшим отступом)
+    // 2. РИСУЕМ ТЕНЬ
     yachtSprite!.render(
       canvas,
-      position: Vector2(1.5, 1.5),
+      position: Vector2(1.5, 1.5), // Смещение тени
       size: size,
       overridePaint: shadowPaint,
     );
@@ -72,11 +62,10 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     // 3. РИСУЕМ КОРПУС ЛОДКИ
     yachtSprite!.render(canvas, size: size);
 
-    // 4. РИСУЕМ РУЛЬ (теперь он внутри трансформации!)
-    // Вызываем его ПЕРЕД restore, чтобы он использовал тот же поворот
+    // 4. РИСУЕМ РУЛЬ
     _renderRudder(canvas);
 
-    canvas.restore(); // ВОЗВРАЩАЕМ состояние холста для остального мира
+    canvas.restore();
   }
 
   void _renderRudder(Canvas canvas) {
@@ -108,78 +97,70 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
 
-  @override
   void update(double dt) {
     super.update(dt);
 
-    // Вызываем создание пузырьков каждый кадр
-    //_createWake(dt);
-
-    // --- 1. ВЕКТОРЫ ОРИЕНТАЦИИ И ОКРУЖЕНИЯ ---
+    // 1. ВЕКТОРЫ
     Vector2 forwardDir = Vector2(cos(angle), sin(angle));
 
-    // Вектор течения
-    Vector2 currentVector = Vector2(
-        cos(Constants.currentDirection),
-        sin(Constants.currentDirection)
-    ) * Constants.currentSpeed;
-
-    // --- 2. ПРОЕКЦИЯ СКОРОСТЕЙ (Относительно воды) ---
-    double forwardSpeed = velocity.dot(forwardDir); // Продольная скорость
-    Vector2 forwardVel = forwardDir * forwardSpeed;
-    Vector2 lateralVel = velocity - forwardVel;     // Боковой дрейф
-
-    // --- 3. ГИДРОДИНАМИКА (Киль и сопротивление) ---
-    // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Боковое сопротивление увеличено до 200.
-    // Это заставляет лодку мгновенно менять вектор движения вслед за разворотом носа.
-    Vector2 dragForce = (forwardVel * -Constants.dragCoefficient) +
-        (lateralVel * -Constants.dragCoefficient * 200.0);
-
-    // ЭФФЕКТ ТОРМОЖЕНИЯ: Руль на больших углах работает как тормоз, гася инерцию вперед
-    double brakingEffect = rudderAngle.abs() * forwardSpeed.abs() * 0.8;
-    Vector2 rudderBrakeForce = forwardDir * (-brakingEffect * Constants.yachtMass * 0.1);
-
-    // --- 4. УГЛОВЫЕ МОМЕНТЫ (Вращение) ---
-    // PROP WASH: Усиливаем поток от винта на руль (в 10 раз сильнее при газе)
-    double propWash = throttle.abs() * 10.0;
-    double effectiveFlow = forwardSpeed.abs() + propWash;
-
-    // Сила руля (удвоена для маневренности)
-    double rudderTorque = rudderAngle * effectiveFlow * (Constants.rudderEffect * 2.5);
-
-    // PROP WALK (Заброс кормы)
-    double sideSign = (Constants.propType == PropellerType.rightHanded) ? -1.0 : 1.0;
-    double propWalkTorque = throttle * sideSign * Constants.propWalkFactor * (throttle < 0 ? 1.5 : 0.2);
-
-    // ВЕТЕР (Момент уваливания)
-    double angleToWind = Constants.windDirection - angle;
-    double windTorque = sin(angleToWind) * Constants.windSpeed * 0.5;
-
-    // --- 5. ИНТЕГРАЦИЯ ВРАЩЕНИЯ ---
-    double totalTorque = rudderTorque + propWalkTorque + windTorque;
-    double angularDrag = -angularVelocity * Constants.angularDrag;
-
-    // Уменьшаем инерцию вращения (масса / 20), чтобы корпус разворачивался быстрее
-    double angularAcc = (totalTorque + angularDrag) / (Constants.yachtMass / 20);
-    angularVelocity += angularAcc * dt;
-    angle += angularVelocity * dt;
-
-    // --- 6. ЛИНЕЙНОЕ ДВИЖЕНИЕ ---
-    // Тяга двигателя
+    // 2. ФИЗИКА (в логических метрах/секунду)
     Vector2 thrustForce = forwardDir * (throttle * Constants.maxThrust);
+    Vector2 dragForce = velocity * -Constants.dragCoefficient;
 
-    // Влияние ветра (Leeway)
-    Vector2 windVector = Vector2(cos(Constants.windDirection), sin(Constants.windDirection)) * Constants.windSpeed;
-    Vector2 windLeeway = windVector * Constants.windageArea * 1.5;
+    // Боковое сопротивление
+    Vector2 lateralDir = Vector2(-forwardDir.y, forwardDir.x);
+    double lateralSpeed = velocity.dot(lateralDir);
+    Vector2 lateralDrag = lateralDir * (-lateralSpeed * Constants.dragCoefficient * 20.0);
 
-    // Итоговое ускорение в воде
-    Vector2 netForce = thrustForce + windLeeway + dragForce + rudderBrakeForce;
+    Vector2 netForce = thrustForce + dragForce + lateralDrag;
     Vector2 acceleration = netForce / Constants.yachtMass;
+
+    // Обновляем ЛОГИЧЕСКУЮ скорость (метры в секунду)
     velocity += acceleration * dt;
 
-    // Итоговое смещение относительно дна (SOG = Скорость в воде + Течение)
-    Vector2 speedOverGround = velocity + currentVector;
-    position.add(speedOverGround * (dt * Constants.pixelRatio));
+    // Ограничиваем скорость 6 узлами (6.0 м/с)
+    if (velocity.length > 6.0) {
+      velocity = velocity.normalized() * 6.0;
+    }
+
+    // 3. ПЕРЕМЕЩЕНИЕ (Главное исправление!)
+    // Мы переводим метры в пиксели, умножая на Constants.pixelRatio (30.0)
+    position += velocity * (dt * Constants.pixelRatio);
+
+    // 4. ВРАЩЕНИЕ
+    double speedFactor = velocity.length; // уже в метрах/с
+    double propWash = throttle.abs() * 2.0;
+    double turningPower = (speedFactor + propWash) * Constants.rudderEffect;
+
+    double torque = rudderAngle * turningPower;
+    double angularDrag = -angularVelocity * Constants.angularDrag;
+
+    angularVelocity += (torque + angularDrag) * dt;
+    angle += angularVelocity * dt;
+
+    _containInArea();
+  }
+
+  void _containInArea() {
+    final bounds = game.playArea;
+    final halfWidth = size.x / 2;
+    final halfHeight = size.y / 2;
+
+    if (position.x < bounds.left + halfWidth) {
+      position.x = bounds.left + halfWidth;
+      velocity.x = 0;
+    } else if (position.x > bounds.right - halfWidth) {
+      position.x = bounds.right - halfWidth;
+      velocity.x = 0;
+    }
+
+    if (position.y < bounds.top + halfHeight) {
+      position.y = bounds.top + halfHeight;
+      velocity.y = 0;
+    } else if (position.y > bounds.bottom - halfHeight) {
+      position.y = bounds.bottom - halfHeight;
+      velocity.y = 0;
+    }
   }
 
   @override
