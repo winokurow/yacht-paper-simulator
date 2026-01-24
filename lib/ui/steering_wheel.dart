@@ -8,12 +8,37 @@ class SteeringWheel extends SpriteComponent
     with HasGameReference<YachtMasterGame>, DragCallbacks {
 
   double _visualAngle = 0.0;
-
+  bool _isDragging = false;
   SteeringWheel({required Vector2 position}) : super(
     position: position,
     size: Vector2(140, 140), // Размер области штурвала
     anchor: Anchor.center,   // Важно: позиция на панели будет центром штурвала
   );
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    // СВЯЗКА С КЛАВИАТУРОЙ
+    // Если игрок НЕ тянет штурвал пальцем/мышкой,
+    // штурвал визуально повторяет targetRudderAngle из логики яхты
+    if (!_isDragging) {
+      // Переводим нормализованное значение (-1.0...1.0) обратно в радианы (-pi/2...pi/2)
+      _visualAngle = game.yacht.targetRudderAngle * (pi / 2);
+    }
+  }
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    _isDragging = true; // Захватываем управление
+  }
+
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    _isDragging = false; // Отпускаем управление для клавиатуры
+  }
 
   @override
   Future<void> onLoad() async {
@@ -35,7 +60,7 @@ class SteeringWheel extends SpriteComponent
       _visualAngle = 0;
     }
     // Передаем значение в физику лодки (-1.0 ... 1.0)
-    game.yacht.rudderAngle = (_visualAngle / (pi / 2)).clamp(-1.0, 1.0);
+    game.yacht.targetRudderAngle = (_visualAngle / (pi / 2)).clamp(-1.0, 1.0);
   }
 
   @override

@@ -12,12 +12,37 @@ class ThrottleLever extends PositionComponent
 
   // Позиция рычага (0.0 - нейтраль, 1.0 - полный вперед, -1.0 - полный назад)
   double _currentValue = 0.0;
+  bool _isDragging = false;   // Флаг ручного управления
 
   ThrottleLever({required Vector2 position}) : super(
     position: position,
     size: Vector2(50, 120), // Размер всей области рычага
     anchor: Anchor.center,
   );
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    // СИНХРОНИЗАЦИЯ С КЛАВИАТУРОЙ
+    // Если игрок НЕ тянет рычаг пальцем, визуальное положение
+    // берется из реального состояния газа яхты
+    if (!_isDragging) {
+      _currentValue = game.yacht.throttle;
+    }
+  }
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    _isDragging = true; // Блокируем авто-обновление от клавиатуры
+  }
+
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    _isDragging = false; // Возвращаем управление клавиатуре
+  }
 
   @override
   void onDragUpdate(DragUpdateEvent event) {

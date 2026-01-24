@@ -1,4 +1,4 @@
-import 'dart:math' hide Rectangle;
+import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/experimental.dart' show Rectangle;
@@ -7,11 +7,10 @@ import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:yacht/components/yacht_player.dart';
+import '../components/MooredYacht.dart';
 import '../components/dock_component.dart';
 import '../components/sea_component.dart';
 import '../core/constants.dart';
-import 'dart:math' as math; // Добавляем префикс для math
-import 'package:flame/geometry.dart';
 
 import '../ui/dashboard_base.dart';
 
@@ -20,18 +19,72 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   late Dock dock;
   late Sea sea;
   String statusMessage = "Ready to moor";
-  // Определяем размер игрового поля (например, 3000x2000 пикселей)
+
+  final List<Map<String, dynamic>> marinaConfig = [
+    {
+      'type': 'boat',
+      'width': 3.0,     // Узкий катер
+      'length': 8.0,
+      'sprite': 'yacht_small.png',
+      'hitboxType': 'pointy', // Острый нос
+      'isNoseRight': true,    // Нос смотрит вправо
+    },
+    {
+      'type': 'boat',
+      'width': 4.0,     // Средняя парусная яхта
+      'length': 12.0,
+      'sprite': 'yacht_medium.png',
+      'hitboxType': 'pointy', // Острый нос
+      'isNoseRight': false,    // Нос смотрит вправо
+    },
+    {
+      'type': 'boat',
+      'width': 5.0,     // Большая моторная яхта
+      'length': 10.0,
+      'sprite': 'yacht_motor.png',
+      'hitboxType': 'pointy', // Острый нос
+      'isNoseRight': true,    // Нос смотрит вправо
+    },
+    {
+      'type': 'player_slot' // Твое свободное место (индекс 3)
+    },
+    {
+      'type': 'boat',
+      'width': 4.0,
+      'length': 12.0,
+      'sprite': 'yacht_medium.png',
+      'hitboxType': 'pointy', // Острый нос
+      'isNoseRight': false,    // Нос смотрит вправо
+    },
+    {
+      'type': 'boat',
+      'width': 3.0,
+      'length': 9.0,
+      'sprite': 'yacht_small.png',
+      'hitboxType': 'pointy', // Острый нос
+      'isNoseRight': true,    // Нос смотрит вправо
+    },
+    {
+      'type': 'boat',
+      'width': 10.0,     // Самый крупный объект в марине
+      'length': 22.0,
+      'sprite': 'yacht_large.png',
+      'hitboxType': 'square', // Острый нос
+      'isNoseRight': true,    // Нос смотрит вправо
+    },
+  ];
+
   final Rect playArea = const Rect.fromLTWH(0, 0, 2000, 3000);
 
   @override
   Future<void> onLoad() async {
     debugMode = false;
-
+    camera.viewfinder.anchor = Anchor.center;
     // 1. ПАРАМЕТРЫ ПРИЧАЛА
-    const double dockWidth = 800.0;
+    const double dockWidth = 1200.0; // Немного увеличим, чтобы влезло 6 яхт
     const double dockHeight = 120.0;
     final double dockX = (playArea.width / 2) - (dockWidth / 2);
-    final double dockY = playArea.top + 100; // Отступ от края листа
+    final double dockY = playArea.top;
 
     // 2. ИНИЦИАЛИЗАЦИЯ ПРИЧАЛА
     dock = Dock(
@@ -42,110 +95,167 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     world.add(dock);
 
     // 3. ИНИЦИАЛИЗАЦИЯ ЯХТЫ
-    // Угол -90 градусов (или -pi/2 радианов) — это направление ВВЕРХ (к причалу)
     yacht = YachtPlayer(startAngleDegrees: -90);
-
-    // Позиция: X — строго по центру причала, Y — причал + 50 метров (1500 пикселей)
     final double startY = dock.position.y + dock.size.y + (50 * Constants.pixelRatio);
     yacht.position = Vector2(playArea.width / 2, startY);
     yacht.priority = 10;
     world.add(yacht);
 
-    // 4. ФОН (Добавляем в world, чтобы он масштабировался вместе с игрой)
+    // 4. ФОН (Стол)
     world.add(RectangleComponent(
       size: Vector2(10000, 10000),
       position: Vector2(-4000, -3000),
-      paint: Paint()..color = const Color(0xFF3E2723), // Твой коричневый стол
+      paint: Paint()..color = const Color(0xFF3E2723),
       priority: -20,
     ));
 
-    // 2. МОРЕ (Твой лист бумаги Sea)
-    // Размещаем его строго в границах playArea
+    // 5. МОРЕ (Лист бумаги)
     sea = Sea(size: Vector2(playArea.width, playArea.height));
     sea.position = Vector2(playArea.left, playArea.top);
     sea.priority = -15;
     world.add(sea);
 
-    // 5. НАСТРОЙКА КАМЕРЫ
-    camera.follow(yacht);
-    camera.viewfinder.anchor = Anchor.center;
+    // 6. НАСТРОЙКА МАРИНЫ (Пришвартованные яхты)
+    _setupMarina();
 
-    // Ограничиваем камеру границами листа бумаги
+    // 7. НАСТРОЙКА КАМЕРЫ
+    camera.viewfinder.anchor = Anchor.center;
     camera.setBounds(Rectangle.fromLTWH(
         playArea.left, playArea.top, playArea.width, playArea.height
     ));
 
-    // В конце метода onLoad
+    // 8. ИНТЕРФЕЙС
     final dashboard = DashboardBase();
-    // Добавляем именно в viewport!
     camera.viewport.add(dashboard);
+  }
+
+  void _setupMarina() {
+    final int totalSlips = marinaConfig.length;
+    // Используем .floor() или .round(), чтобы шаг был целым
+    final double slipStep = (dock.size.x / totalSlips).roundToDouble();
+    final double dockBottomY = (dock.position.y + dock.size.y).roundToDouble();
+
+    for (int i = 0; i < totalSlips; i++) {
+      final config = marinaConfig[i];
+      // Все расчеты оборачиваем в .roundToDouble()
+      final double posX = (dock.position.x + (i * slipStep) + (slipStep / 2)).roundToDouble();
+
+      if (config['type'] == 'player_slot') {
+        _addParkingMarker(Vector2(posX, dockBottomY), slipStep);
+        continue;
+      }
+
+      double boatWidthPx = (config['width'] * Constants.pixelRatio).roundToDouble();
+      double posY = (dockBottomY + (boatWidthPx / 2) + 2).roundToDouble();
+
+      world.add(MooredYacht(
+        position: Vector2(posX, posY),
+        spritePath: config['sprite'],
+        lengthInMeters: config['length'],
+        widthInMeters: config['width'],
+        hitboxType: config['hitboxType'] ?? 'pointy', // Передаем тип
+        isNoseRight: config['isNoseRight'] ?? true,   // Передаем направление
+      ));
+    }
+  }
+
+  void _addParkingMarker(Vector2 pos, double slipWidth) {
+    // 1. Настраиваем размеры
+    final double markerWidth = slipWidth * 0.9;
+    // Высота теперь равна длине яхты + небольшой запас, но не бесконечная
+    final double markerHeight = yacht.size.x * 1.2;
+
+    // 2. Рассчитываем позицию (верхний край рамки = нижний край причала)
+    final double topOfMarkerY = dock.position.y + dock.size.y;
+    final Vector2 markerPos = Vector2(pos.x, topOfMarkerY);
+
+    // 3. Внешняя зеленая рамка
+    final marker = RectangleComponent(
+      position: markerPos,
+      size: Vector2(markerWidth, markerHeight),
+      anchor: Anchor.topCenter, // Привязка к верхнему центру
+      paint: Paint()
+        ..color = Colors.green.withOpacity(0.7)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+      priority: -1,
+    );
+
+    // 4. Внутренняя заливка
+    final fill = RectangleComponent(
+      position: markerPos,
+      size: marker.size,
+      anchor: Anchor.topCenter,
+      paint: Paint()..color = Colors.green.withOpacity(0.15),
+      priority: -2,
+    );
+
+    world.add(marker);
+    world.add(fill);
   }
 
   @override
   void update(double dt) {
     super.update(dt);
+
+    // 1. Динамический зум (уже с округлением)
     _applyDynamicZoom(dt);
+
+    // 2. РУЧНОЕ СЛЕДОВАНИЕ КАМЕРЫ С ПИКСЕЛЬНОЙ ПРИВЯЗКОЙ
+    // Мы берем позицию яхты и округляем её до целых чисел.
+    // Это гарантирует, что камера не стоит "между пикселями".
+    camera.viewfinder.position = Vector2(
+      yacht.position.x.roundToDouble(),
+      yacht.position.y.roundToDouble(),
+    );
   }
 
   void _applyDynamicZoom(double dt) {
-    // Вычисляем расстояние между центром яхты и центром причала
     final dockCenter = dock.position + (dock.size / 2);
     final yachtCenter = yacht.position;
 
-    // Добавляем запас (padding), чтобы объекты не были впритык к краям экрана
+    // Рассчитываем желаемый зум на основе расстояния
     double dx = (yachtCenter.x - dockCenter.x).abs() + 600;
     double dy = (yachtCenter.y - dockCenter.y).abs() + 600;
 
-    // Считаем зум исходя из текущего размера экрана
     double zoomX = size.x / dx;
     double zoomY = size.y / dy;
 
-    double targetZoom = min(zoomX, zoomY).clamp(0.4, 1.2);
+    // Целевой зум
+    double targetZoom = math.min(zoomX, zoomY).clamp(0.4, 1.2);
 
-    // Плавное приближение/удаление
-    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * 1.5 * dt;
+    // ПЛАВНОСТЬ: Используем lerp для мягкого перехода
+    double currentZoom = camera.viewfinder.zoom;
+    double newZoom = currentZoom + (targetZoom - currentZoom) * 1.5 * dt;
+
+    // ЗАЩИТА: Округляем до 3 знаков после запятой.
+    // Этого достаточно для плавности глазу, но это убирает бесконечные микро-колебания.
+    camera.viewfinder.zoom = (newZoom * 1000).roundToDouble() / 1000;
   }
 
-    // Простое управление для теста US 1.1
   @override
-  KeyEventResult onKeyEvent(
-      KeyEvent event,
-      Set<LogicalKeyboardKey> keysPressed,
-      ) {
-    // Шаг изменения (насколько меняется значение при одном нажатии/удержании)
-    // Можно подстроить под себя: чем меньше число, тем плавнее управление
-    const double step = 0.01;
+  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
+    const double throttleStep = 0.02;
+    const double rudderStep = 0.05;
 
-    // Мы реагируем только когда клавиши НАЖАТЫ или УДЕРЖИВАЮТСЯ (Repeat)
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
-
-      // ГАЗ (W / S)
       if (keysPressed.contains(LogicalKeyboardKey.keyW)) {
-        // Увеличиваем газ и ограничиваем его максимумом 1.0
-        yacht.throttle = (yacht.throttle + step).clamp(-1.0, 1.0);
+        yacht.throttle = (yacht.throttle + throttleStep).clamp(-1.0, 1.0);
       }
       if (keysPressed.contains(LogicalKeyboardKey.keyS)) {
-        // Уменьшаем газ и ограничиваем его минимумом -1.0
-        yacht.throttle = (yacht.throttle - step).clamp(-1.0, 1.0);
+        yacht.throttle = (yacht.throttle - throttleStep).clamp(-1.0, 1.0);
       }
-
-      // РУЛЬ (A / D)
       if (keysPressed.contains(LogicalKeyboardKey.keyA)) {
-        // Поворачиваем влево
-        yacht.rudderAngle = (yacht.rudderAngle - step).clamp(-1.0, 1.0);
+        yacht.targetRudderAngle = (yacht.targetRudderAngle - rudderStep).clamp(-1.0, 1.0);
       }
       if (keysPressed.contains(LogicalKeyboardKey.keyD)) {
-        // Поворачиваем вправо
-        yacht.rudderAngle = (yacht.rudderAngle + step).clamp(-1.0, 1.0);
+        yacht.targetRudderAngle = (yacht.targetRudderAngle + rudderStep).clamp(-1.0, 1.0);
       }
-
-      // ДОПОЛНИТЕЛЬНО: Клавиша "Пробел" для быстрой нейтрали и выравнивания руля
       if (keysPressed.contains(LogicalKeyboardKey.space)) {
         yacht.throttle = 0.0;
-        yacht.rudderAngle = 0.0;
+        yacht.targetRudderAngle = 0.0;
       }
     }
-
     return KeyEventResult.handled;
   }
-  }
+}

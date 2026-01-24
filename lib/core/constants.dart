@@ -13,6 +13,10 @@ class Constants {
   static const double angularDrag = 50.0;    // Сопротивление вращению
   static const double rudderEffect = 1.6;     // Насколько эффективно руль поворачивает лодку
 
+// СКОРОСТЬ ПОВОРОТА РУЛЯ
+  // 2.0 означает, что от края до края руль переложится примерно за 1 секунду.
+  // Чем меньше число, тем "тяжелее" ощущается штурвал.
+  static const double rudderRotationSpeed = 2.0;
 
   // Сопротивление дрейфу (боковое)
   static const double lateralDragMultiplier = 10.0;

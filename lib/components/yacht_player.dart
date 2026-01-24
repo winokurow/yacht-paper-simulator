@@ -1,12 +1,12 @@
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flame/effects.dart';
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 import 'dart:math';
 import 'package:flame/extensions.dart';
 import '../game/yacht_game.dart';
+import 'MooredYacht.dart';
 import 'dock_component.dart';
 import 'package:flame/particles.dart';
 
@@ -16,7 +16,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
 
   // Состояние яхты
   double angularVelocity = 0.0;  // Скорость вращения (рад/с)
-  double rudderAngle = 0.0;      // Угол руля (от -1.0 до 1.0)
+  double targetRudderAngle = 0.0; // То, что мы выставили на панели
+  double _currentRudderAngle = 0.0; // То, где руль сейчас физически
   double throttle = 0.0;
 // Теперь скорость — это вектор (x, y) в мировых координатах
   Vector2 velocity = Vector2.zero();
@@ -25,8 +26,6 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     size: Vector2(12.0 * Constants.pixelRatio, 4.0 * Constants.pixelRatio),
     anchor: Anchor.center,
   ) {
-    // Добавляем хитбокс яхте
-    add(RectangleHitbox());
     angle = startAngleDegrees * (pi / 180);
   }
 
@@ -35,8 +34,25 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     // Загружаем спрайт бумажной лодки
     yachtSprite = await game.loadSprite('yacht_paper.png');
 
-    // Добавляем хитбокс (он остается невидимым, но работает)
-    add(RectangleHitbox());
+    final w = size.x; // Длина лодки (X)
+    final h = size.y; // Ширина корпуса (Y)
+
+    // Описываем точки в ПИКСЕЛЯХ (абсолютные координаты внутри лодки)
+    // Важно: (0,0) — это всегда верхний левый угол прямоугольника size
+    final boatShape = [
+    Vector2(w, h * 0.5),     // 1. Нос (середина правой стороны)
+    Vector2(w * 0.8, 0),     // 2. Верхнее "плечо"
+    Vector2(0, 0),           // 3. Корма верх (левый верхний угол)
+    Vector2(0, h),           // 4. Корма низ (левый нижний угол)
+    Vector2(w * 0.8, h),     // 5. Нижнее "плечо"
+    ];
+
+    // Добавляем обычный PolygonHitbox (не relative!)
+    // Если debugMode = true, этот контур должен идеально обвести спрайт
+    add(PolygonHitbox(
+    boatShape,
+    collisionType: CollisionType.active,
+    ));
   }
 
   @override
@@ -83,7 +99,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     canvas.translate(pivotX, pivotY);
 
     // Угол поворота пера руля
-    canvas.rotate(-rudderAngle * 0.6);
+    canvas.rotate(-_currentRudderAngle);
 
     // Рисуем перо руля назад от кормы
     final rudderLength = size.x * 0.2;
@@ -97,47 +113,70 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
 
+  @override
   void update(double dt) {
     super.update(dt);
 
-    // 1. ВЕКТОРЫ
+    // 1. ИНЕРЦИЯ ШТУРВАЛА
+    // Плавно подтягиваем реальный угол руля к выбранному на панели
+    double rudderDiff = targetRudderAngle - _currentRudderAngle;
+    if (rudderDiff.abs() > 0.01) {
+      _currentRudderAngle += rudderDiff.sign * Constants.rudderRotationSpeed * dt;
+      // Чтобы не проскочить целевое значение
+      if ((targetRudderAngle - _currentRudderAngle).sign != rudderDiff.sign) {
+        _currentRudderAngle = targetRudderAngle;
+      }
+    }
+
+    // 2. ВЕКТОРЫ НАПРАВЛЕНИЯ
     Vector2 forwardDir = Vector2(cos(angle), sin(angle));
 
-    // 2. ФИЗИКА (в логических метрах/секунду)
+    // 3. ФИЗИКА ТЯГИ И СОПРОТИВЛЕНИЯ (в логических метрах)
+    // Сила двигателя
     Vector2 thrustForce = forwardDir * (throttle * Constants.maxThrust);
+
+    // Продольное сопротивление воды
     Vector2 dragForce = velocity * -Constants.dragCoefficient;
 
-    // Боковое сопротивление
+    // Боковое сопротивление (убирает бесконечный дрейф боком)
     Vector2 lateralDir = Vector2(-forwardDir.y, forwardDir.x);
     double lateralSpeed = velocity.dot(lateralDir);
-    Vector2 lateralDrag = lateralDir * (-lateralSpeed * Constants.dragCoefficient * 20.0);
+    Vector2 lateralDrag = lateralDir * (-lateralSpeed * Constants.dragCoefficient * 15.0);
 
+    // Итоговое ускорение (F = ma => a = F/m)
     Vector2 netForce = thrustForce + dragForce + lateralDrag;
     Vector2 acceleration = netForce / Constants.yachtMass;
 
-    // Обновляем ЛОГИЧЕСКУЮ скорость (метры в секунду)
+    // Обновляем скорость (м/с)
     velocity += acceleration * dt;
 
-    // Ограничиваем скорость 6 узлами (6.0 м/с)
+    // Лимит скорости 6 узлов (6 м/с)
     if (velocity.length > 6.0) {
       velocity = velocity.normalized() * 6.0;
     }
 
-    // 3. ПЕРЕМЕЩЕНИЕ (Главное исправление!)
-    // Мы переводим метры в пиксели, умножая на Constants.pixelRatio (30.0)
+    // 4. ПЕРЕМЕЩЕНИЕ (Перевод метров в пиксели экрана)
     position += velocity * (dt * Constants.pixelRatio);
 
-    // 4. ВРАЩЕНИЕ
-    double speedFactor = velocity.length; // уже в метрах/с
-    double propWash = throttle.abs() * 2.0;
+    // 5. ВРАЩЕНИЕ (МАНЕВРИРОВАНИЕ)
+    // Эффективность руля зависит от скорости + потока от винта (Prop Wash)
+    double speedFactor = velocity.length;
+    double propWash = throttle.abs() * 1.5;
     double turningPower = (speedFactor + propWash) * Constants.rudderEffect;
 
-    double torque = rudderAngle * turningPower;
-    double angularDrag = -angularVelocity * Constants.angularDrag;
+    // Крутящий момент зависит от ТЕКУЩЕГО угла руля (с учетом инерции)
+    double torque = _currentRudderAngle * turningPower;
+    double resistance = -angularVelocity * Constants.angularDrag;
 
-    angularVelocity += (torque + angularDrag) * dt;
+    // Угловое ускорение
+    angularVelocity += (torque + resistance) * dt;
+
+    // Ограничение скорости вращения (для стабильности)
+    angularVelocity = angularVelocity.clamp(-3.0, 3.0);
+
     angle += angularVelocity * dt;
 
+    // 6. ПРОВЕРКА ГРАНИЦ
     _containInArea();
   }
 
@@ -164,68 +203,53 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
   @override
-  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
-    super.onCollisionStart(intersectionPoints, other);
+  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollision(intersectionPoints, other);
 
-    if (other is Dock) {
-      double impactForce = velocity.length;
+    // Проверяем, с чем столкнулись
+    if (other is Dock || other is MooredYacht) {
+      // --- 1. РЕАКЦИЯ НА СТОЛКНОВЕНИЕ (ОТСКОК) ---
 
-      // Если удар достаточно сильный, трясем камеру
-      if (impactForce > 0.5) {
-        // Интенсивность тряски зависит от скорости (макс 10 пикселей)
-        double intensity = (impactForce * 5).clamp(2, 15);
+      // Если скорость достаточная, делаем отскок
+      if (velocity.length > 0.1) {
+        // Инвертируем вектор скорости и гасим его энергию (умножаем на -0.3)
+        velocity = -velocity * 0.3;
 
-        // В Flame 1.x камера трясется через viewfinder
-        game.camera.viewfinder.add(
-          MoveEffect.by(
-            Vector2(intensity, intensity),
-            EffectController(
-              duration: 0.1,
-              reverseDuration: 0.1,
-              repeatCount: 2,
-              curve: Curves.bounceIn,
-            ),
-          ),
-        );
-      }
-
-      // 1. Находим точку удара (среднее арифметическое всех точек пересечения)
-      final collisionPoint = intersectionPoints.reduce((a, b) => a + b) / intersectionPoints.length.toDouble();
-
-      // 2. Определяем нормаль (куда направлен "отпор" причала)
-      // Упрощенно для прямоугольного причала:
-      Vector2 normal;
-      if ((collisionPoint.y - other.absolutePosition.y).abs() < 5) {
-        normal = Vector2(0, -1); // Удар сверху
-      } else if ((collisionPoint.y - (other.absolutePosition.y + other.size.y)).abs() < 5) {
-        normal = Vector2(0, 1);  // Удар снизу
-      } else if (collisionPoint.x < other.absolutePosition.x) {
-        normal = Vector2(-1, 0); // Удар слева
+        // Добавляем небольшой случайный поворот при ударе для реализма
+        // Не забудьте import 'dart:math'; для Random()
+        angularVelocity += (Random().nextDouble() - 0.5) * 1.5;
       } else {
-        normal = Vector2(1, 0);  // Удар справа
+        // Если скорость была почти нулевой (просто притерлись),
+        // полностью останавливаем, чтобы не вибрировать
+        velocity = Vector2.zero();
       }
 
-      // 3. РАСЧЕТ ОТСКОКА
-      // Используем встроенный метод reflect для вектора скорости
-      // Отражаем скорость относительно нормали и умножаем на коэффициент упругости
-      if (velocity.dot(normal) < 0) { // Проверяем, что лодка движется К причалу, а не ОТ него
-        velocity.reflect(normal);
-        velocity *= Constants.restitution;
+      // --- 2. РАЗРЕШЕНИЕ ПЕРЕСЕЧЕНИЯ (ОТТАЛКИВАНИЕ) ---
+      // Это главная часть, которая не даст хитбоксам "слипнуться".
+      // Мы находим среднюю точку пересечения и отталкиваемся от неё.
+
+      if (intersectionPoints.isNotEmpty) {
+        // Находим центр всех точек пересечения
+        Vector2 intersectionCenter = intersectionPoints.reduce((a, b) => a + b) / intersectionPoints.length.toDouble();
+
+        // Вектор от точки удара к центру нашей яхты
+        Vector2 pushVector = position - intersectionCenter;
+
+        // Нормализуем его, чтобы получить чистое направление
+        if (pushVector.length > 0) {
+          pushVector.normalize();
+        } else {
+          // Если центры совпали (редко), отталкиваемся назад по нашему углу
+          pushVector = Vector2(-cos(angle), -sin(angle));
+        }
+
+        // Физически отодвигаем яхту на небольшое расстояние (например, 2 пикселя)
+        // Это гарантированно выведет хитбокс из препятствия
+        position += pushVector * 2.0;
       }
 
-      // 4. ЭФФЕКТ УДАРА ДЛЯ ИГРОКА
-      if (impactForce > Constants.damageThreshold) {
-        game.statusMessage = "CRASH! Impact: ${impactForce.toStringAsFixed(1)} m/s";
-      } else {
-        game.statusMessage = "Soft touch";
-      }
-
-      // 5. ПРЕДОТВРАЩЕНИЕ "ЗАЛИПАНИЯ"
-      // Немного отодвигаем лодку от причала в сторону нормали, чтобы хитбоксы не застряли друг в друге
-      position += normal * 2.0;
-
-      // Гасим угловую скорость при ударе
-      angularVelocity *= 0.2;
+      // Сбрасываем газ в нейтраль при ударе
+      throttle = 0.0;
     }
   }
 
