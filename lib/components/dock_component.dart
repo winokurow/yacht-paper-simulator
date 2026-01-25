@@ -17,7 +17,10 @@ required Vector2 position,
 required Vector2 size,
 }) : super(position: position, size: size) {
 // Используем стандартный хитбокс Flame
-add(RectangleHitbox()..collisionType = CollisionType.passive);
+  add(RectangleHitbox(
+    size: Vector2(size.x, size.y + 5), // +5 пикселей в сторону воды
+    position: Vector2(0, -2), // Немного задвигаем под текстуру
+  )..collisionType = CollisionType.passive);
 }
 
 @override

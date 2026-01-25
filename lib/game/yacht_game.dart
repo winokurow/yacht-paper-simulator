@@ -21,6 +21,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   String statusMessage = "Ready to moor";
   bool bowButtonActive = false;
   bool sternButtonActive = false;
+  bool _victoryTriggered = false;
 
   final List<Map<String, dynamic>> marinaConfig = [
     {
@@ -214,6 +215,8 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       yacht.position.x.roundToDouble(),
       yacht.position.y.roundToDouble(),
     );
+
+    _checkVictoryCondition();
   }
 
   void _applyDynamicZoom(double dt) {
@@ -263,17 +266,6 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       }
     }
     return KeyEventResult.handled;
-  }
-
-  void resetGame() {
-    // 1. Убираем окно
-    overlays.remove('GameOver');
-
-    // 2. Сбрасываем состояние игрока
-    yacht.resetToInitialState();
-
-    // 3. Запускаем время в игре снова
-    resumeEngine();
   }
 
   void onOutOfBounds() {
@@ -373,5 +365,47 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
         break; // Нашли наш слот, выходим
       }
     }
+  }
+
+  void _checkVictoryCondition() {
+    if (_victoryTriggered) return;
+
+    // Условия победы:
+    // 1. Подан носовой
+    // 2. Подан кормовой
+    // 3. Скорость почти нулевая (меньше 0.2 м/с)
+    bool moored = yacht.bowMooredTo != null && yacht.sternMooredTo != null;
+    bool stopped = yacht.velocity.length < (0.2 * Constants.pixelRatio);
+
+    if (moored && stopped) {
+      _victoryTriggered = true;
+      _showVictory();
+    }
+  }
+
+  void _showVictory() {
+    pauseEngine(); // Останавливаем физику
+    overlays.add('Victory');
+  }
+
+// Не забудь обновить метод сброса!
+  void resetGame() {
+    overlays.remove('GameOver');
+    overlays.remove('Victory'); // Убираем окно победы
+    _victoryTriggered = false; // Сбрасываем флаг
+    yacht.resetToInitialState();
+    resumeEngine();
+  }
+
+  void onGameOver(String reason) {
+    // Останавливаем игру
+    pauseEngine();
+
+    // Сохраняем причину для отображения в UI (необязательно, если в UI фиксированный текст)
+    statusMessage = reason;
+
+    // Показываем оверлей проигрыша
+    // Убедись, что 'GameOver' зарегистрирован в main.dart
+    overlays.add('GameOver');
   }
 }
