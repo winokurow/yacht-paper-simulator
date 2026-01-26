@@ -8,7 +8,7 @@ import 'game/yacht_game.dart';
 void main() {
 
   final game = YachtMasterGame();
-
+  WidgetsFlutterBinding.ensureInitialized();
     runApp(
       MaterialApp(
         home: Scaffold(

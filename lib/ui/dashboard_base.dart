@@ -60,6 +60,17 @@ class DashboardBase extends PositionComponent with HasGameReference<YachtMasterG
   void update(double dt) {
     super.update(dt);
 
+    // 1. Переводим пиксели в "узлы"
+    // Делим на pixelRatio, чтобы получить чистые единицы скорости
+    double actualKnots = game.yacht.velocity.length / Constants.pixelRatio;
+
+    // 2. Вместо прямой установки, передаем значение для сглаживания
+    // (нам нужно добавить поле targetValue в PaperGauge или сглаживать здесь)
+    speedGauge.updateValue(actualKnots, dt);
+
+    // Ветер (направление обычно не требует сильного сглаживания)
+    windGauge.currentValue = Constants.windDirection;
+
     // Обновляем скорость: перевод пикселей/сек в узлы
     speedGauge.currentValue = game.yacht.velocity.length;
 

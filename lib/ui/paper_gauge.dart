@@ -11,7 +11,7 @@ class PaperGauge extends PositionComponent {
   final double maxVal;
   final GaugeType type; // Добавляем тип
   double currentValue = 0;
-
+  double _targetValue = 0;
   PaperGauge({
     required this.label,
     required this.minVal,
@@ -38,6 +38,14 @@ class PaperGauge extends PositionComponent {
 
     _renderNeedle(canvas, center, radius);
     _drawLabel(canvas, center, radius);
+  }
+
+  // Метод для плавного обновления
+  void updateValue(double target, double dt) {
+    _targetValue = target;
+    // Коэффициент 3.0 определяет скорость движения стрелки (инерцию)
+    // Чем меньше число, тем более "ленивая" стрелка
+    currentValue += (_targetValue - currentValue) * 3.0 * dt;
   }
 
   // Шкала для спидометра (дуга)
@@ -90,9 +98,12 @@ class PaperGauge extends PositionComponent {
   }
 
   void _drawLabel(Canvas canvas, Vector2 center, double radius) {
+    final speedText = type == GaugeType.linear
+        ? "${currentValue.toStringAsFixed(1)} $label"
+        : label;
     final tp = TextPainter(
       text: TextSpan(
-        text: label,
+        text: speedText,
         style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
       ),
       textDirection: TextDirection.ltr,

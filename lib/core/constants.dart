@@ -3,20 +3,19 @@ enum PropellerType { leftHanded, rightHanded }
 class Constants {
   static const double pixelRatio = 10.0; // 1 метр = 10 пикселей
 
-// --- НАСТРОЙКИ "СПОРТ-РЕЖИМ" ---
-
   // Параметры для US 1.1
-  static const double yachtMass = 5000.0;       // 5 тонн
-  static const double dragCoefficient = 300.0; // Сопротивление воды
+  static const double yachtMass = 1000.0;       // 5 тонн
   static const double maxThrust = 15000.0;     // Мощность двигателя в Ньютонах
   static const double minSpeedThreshold = 0.05; // Скорость, ниже которой считаем остановку
   static const double angularDrag = 50.0;    // Сопротивление вращению
   static const double rudderEffect = 1.6;     // Насколько эффективно руль поворачивает лодку
-
+  static const double maxSpeed = 6.0 * Constants.pixelRatio; // Абсолютный предел
+  static const double dragCoefficient = 0.25; // Насколько "вязкая" вода
 // СКОРОСТЬ ПОВОРОТА РУЛЯ
   // 2.0 означает, что от края до края руль переложится примерно за 1 секунду.
   // Чем меньше число, тем "тяжелее" ощущается штурвал.
   static const double rudderRotationSpeed = 2.0;
+  static const double propWashFactor = 2.0; // Насколько сильно винт обдувает руль
 
   // Сопротивление дрейфу (боковое)
   static const double lateralDragMultiplier = 10.0;
@@ -26,7 +25,7 @@ class Constants {
 
   // Сила эффекта (подбирается экспериментально)
   // На реверсе эффект обычно в 2-3 раза сильнее, чем на переднем ходу
-  static const double propWalkFactor = 0.05;
+  static const double propWalkEffect = 5;
 
   // Параметры ветра
   static const double windSpeed = 50.0; // Скорость ветра (м/с), примерно 20 узлов

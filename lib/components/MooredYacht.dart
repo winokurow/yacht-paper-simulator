@@ -42,6 +42,11 @@ class MooredYacht extends SpriteComponent
       // Для остроносых яхт
       _addPointyHitbox();
     }
+
+    // 3. Копируем настройки Paint из основной лодки (обычно они дефолтные)
+    // Если в YachtPlayer ты не менял paint, то и здесь не трогаем.
+    // Но убедимся, что качество фильтрации не "шумит".
+    paint = Paint()..filterQuality = FilterQuality.low;
   }
 
   void _addPointyHitbox() {
