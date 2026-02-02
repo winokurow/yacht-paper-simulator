@@ -8,12 +8,13 @@ import '../game/yacht_game.dart';
 class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
   ui.Image? _dockImage;
   late Paint _dockPaint;
-
   final List<double> bollardXPositions;
 
   // Оптимизированные краски
   static final Paint _bollardBasePaint = Paint()..color = Colors.grey[800]!;
   static final Paint _bollardTopPaint = Paint()..color = Colors.grey[600]!;
+
+  static const double bollardYFactor = 0.8;
 
   Dock({
     required this.bollardXPositions,
@@ -87,10 +88,15 @@ class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
 
     // Тумбы
     final double bollardRadius = size.y * 0.08;
-    final double posY = size.y * 0.7;
+    final double posY = size.y * bollardYFactor;
 
     for (final xPos in bollardXPositions) {
       final pos = Offset(xPos, posY);
+      canvas.drawCircle(
+          pos.translate(2, 2),
+          bollardRadius,
+          Paint()..color = Colors.black.withOpacity(0.3)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0)
+      );
       canvas.drawCircle(pos, bollardRadius, _bollardBasePaint);
       canvas.drawCircle(pos, bollardRadius * 0.7, _bollardTopPaint);
     }

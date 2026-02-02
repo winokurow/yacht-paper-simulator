@@ -11,7 +11,7 @@ class SteeringWheel extends SpriteComponent
   bool _isDragging = false;
   SteeringWheel({required Vector2 position}) : super(
     position: position,
-    size: Vector2(140, 140), // Размер области штурвала
+    size: Vector2(280, 280), // Размер области штурвала
     anchor: Anchor.center,   // Важно: позиция на панели будет центром штурвала
   );
 
@@ -67,15 +67,9 @@ class SteeringWheel extends SpriteComponent
   void render(Canvas canvas) {
     // 1. Центр компонента для отрисовки
     final centerOffset = Offset(size.x / 2, size.y / 2);
-
-    // 2. Рисуем ТЕНЬ
-    // Она должна быть зафиксирована относительно центра и не вращаться
-    final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.2)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-
-    // Рисуем круглую тень со смещением (4, 4)
-    canvas.drawCircle(centerOffset + const Offset(4, 4), size.x / 2 - 10, shadowPaint);
+    // Увеличиваем радиус тени и смещение
+    canvas.drawCircle(centerOffset + const Offset(8, 8), size.x / 2 - 20,
+        Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
 
     // 3. ВРАЩЕНИЕ СПРАЙТА
     canvas.save();

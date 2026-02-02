@@ -3,116 +3,57 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import '../game/yacht_game.dart';
 
-class ThrottleLever extends PositionComponent
-    with HasGameReference<YachtMasterGame>, DragCallbacks {
-
-  // Внутренние параметры для отрисовки
-  final double trackHeight = 100.0;
-  final double handleSize = 40.0;
-
-  // Позиция рычага (0.0 - нейтраль, 1.0 - полный вперед, -1.0 - полный назад)
-  double _currentValue = 0.0;
-  bool _isDragging = false;   // Флаг ручного управления
-
-  ThrottleLever({required Vector2 position}) : super(
-    position: position,
-    size: Vector2(50, 120), // Размер всей области рычага
-    anchor: Anchor.center,
-  );
+class ThrottleLever extends PositionComponent with DragCallbacks, HasGameRef<YachtMasterGame> {
+  late PositionComponent knob;
+  // Увеличили ход рычага с 90 до 180
+  final double trackHeight = 180;
 
   @override
-  void update(double dt) {
-    super.update(dt);
+  Future<void> onLoad() async {
+    // Увеличиваем общий размер компонента
+    size = Vector2(80, trackHeight + 40);
+    anchor = Anchor.center;
 
-    // СИНХРОНИЗАЦИЯ С КЛАВИАТУРОЙ
-    // Если игрок НЕ тянет рычаг пальцем, визуальное положение
-    // берется из реального состояния газа яхты
-    if (!_isDragging) {
-      _currentValue = game.yacht.throttle;
-    }
-  }
+    // Прорезь стала шире и длиннее
+    add(RectangleComponent(
+      size: Vector2(8, trackHeight),
+      position: Vector2(size.x / 2, 20),
+      anchor: Anchor.topCenter,
+      paint: Paint()..color = Colors.white30,
+    ));
 
-  @override
-  void onDragStart(DragStartEvent event) {
-    super.onDragStart(event);
-    _isDragging = true; // Блокируем авто-обновление от клавиатуры
-  }
+    // Ручка (кноб) теперь радиусом 36 (было 18)
+    knob = CircleComponent(
+      radius: 36,
+      anchor: Anchor.center,
+      paint: Paint()..color = Colors.redAccent..style = PaintingStyle.fill,
+    );
 
-  @override
-  void onDragEnd(DragEndEvent event) {
-    super.onDragEnd(event);
-    _isDragging = false; // Возвращаем управление клавиатуре
+    knob.position = Vector2(size.x / 2, size.y / 2);
+    add(knob);
   }
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
-    // 1. Получаем локальную Y-координату касания относительно центра трека
-    // Инвертируем Y, так как в координатах экрана "вниз" — это плюс
-    double localY = event.localStartPosition.y - (size.y / 2);
+    double newY = knob.position.y + event.localDelta.y;
+    double minY = 20.0;
+    double maxY = size.y - 20.0;
+    knob.position.y = newY.clamp(minY, maxY);
 
-    // 2. Рассчитываем значение (зажимаем между -1 и 1)
-    // Делим на половину высоты трека
-    _currentValue = -(localY / (trackHeight / 2)).clamp(-1.0, 1.0);
-
-    // 3. Передаем значение яхте
-    game.yacht.throttle = _currentValue;
+    double range = maxY - minY;
+    double normalized = (knob.position.y - minY) / range;
+    gameRef.yacht.targetThrottle = (1.0 - normalized * 2.0).clamp(-1.0, 1.0);
   }
 
   @override
-  void render(Canvas canvas) {
-    final center = Offset(size.x / 2, size.y / 2);
-
-    // 1. Рисуем "прорезь" в картоне
-    final trackPaint = Paint()
-      ..color = Colors.black26
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: center, width: 8, height: trackHeight),
-        const Radius.circular(4),
-      ),
-      trackPaint,
-    );
-
-    // 2. Рисуем метки (F, N, R)
-    _drawLabels(canvas);
-
-    // 3. Рисуем сам рычаг (рукоятку)
-    _drawHandle(canvas, center);
-  }
-
-  void _drawHandle(Canvas canvas, Offset center) {
-    // Вычисляем смещение рукоятки на основе текущего газа
-    double yOffset = -_currentValue * (trackHeight / 2);
-    final handlePos = center + Offset(0, yOffset);
-
-    // Тень рукоятки
-    final shadowPaint = Paint()
-      ..color = Colors.black38
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-    canvas.drawCircle(handlePos + const Offset(2, 2), handleSize / 2, shadowPaint);
-
-    // Сама рукоятка (белая бумага)
-    final handlePaint = Paint()..color = const Color(0xFFFDF5E6);
-    canvas.drawCircle(handlePos, handleSize / 2, handlePaint);
-
-    // Ободок
-    canvas.drawCircle(handlePos, handleSize / 2, Paint()
-      ..color = Colors.black12
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2);
-  }
-
-  void _drawLabels(Canvas canvas) {
-    final textStyle = const TextStyle(color: Colors.black45, fontSize: 10, fontWeight: FontWeight.bold);
-
-    _drawText(canvas, "F", Offset(size.x / 2 + 15, size.y / 2 - 45), textStyle);
-    _drawText(canvas, "N", Offset(size.x / 2 + 15, size.y / 2 - 5), textStyle);
-    _drawText(canvas, "R", Offset(size.x / 2 + 15, size.y / 2 + 35), textStyle);
-  }
-
-  void _drawText(Canvas canvas, String text, Offset offset, TextStyle style) {
-    final tp = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.ltr)..layout();
-    tp.paint(canvas, offset);
+  void update(double dt) {
+    super.update(dt);
+    if (!isDragged) {
+      double throttle = gameRef.yacht.targetThrottle;
+      double minY = 20.0;
+      double maxY = size.y - 20.0;
+      double range = maxY - minY;
+      knob.position.y = minY + ((1.0 - throttle) / 2.0) * range;
+    }
   }
 }

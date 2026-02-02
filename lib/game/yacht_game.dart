@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flame/camera.dart';
 import 'package:flame/components.dart';
 import 'package:flame/experimental.dart' show Rectangle;
 import 'package:flame/game.dart';
@@ -81,7 +82,15 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   @override
   Future<void> onLoad() async {
-    debugMode = true;
+    debugMode = false;
+
+    // 1. ПЕРВЫМ ДЕЛОМ инициализируем яхту
+    yacht = YachtPlayer(startAngleDegrees: -90);
+
+    // 2. Теперь настраиваем камеру (теперь yacht существует!)
+    camera.viewport = FixedResolutionViewport(resolution: Vector2(1280, 720));
+    camera.follow(yacht);
+    camera.viewfinder.zoom = 1.0;
     camera.viewfinder.anchor = Anchor.center;
 
     // 1. ПАРАМЕТРЫ ПРИЧАЛА
@@ -103,7 +112,6 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     world.add(dock);
 
     // 3. ИНИЦИАЛИЗАЦИЯ ЯХТЫ
-    yacht = YachtPlayer(startAngleDegrees: -90);
     final double startY = dock.position.y + dock.size.y + (50 * Constants.pixelRatio);
     yacht.position = Vector2(playArea.width / 2, startY);
     yacht.priority = 10;
@@ -133,8 +141,11 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     ));
 
     // 8. ИНТЕРФЕЙС
-    final dashboard = DashboardBase();
-    camera.viewport.add(dashboard);
+    // В методе onLoad класса YachtMasterGame
+        final dashboard = DashboardBase();
+
+    // 4. Добавляем во вьюпорт
+        camera.viewport.add(dashboard);
   }
 
   void _setupMarina() {
@@ -215,7 +226,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       yacht.position.x.roundToDouble(),
       yacht.position.y.roundToDouble(),
     );
-
+    _handleInput(dt);
     _checkVictoryCondition();
   }
 
@@ -242,30 +253,32 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     camera.viewfinder.zoom = (newZoom * 1000).roundToDouble() / 1000;
   }
 
-  @override
-  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    const double throttleStep = 0.02;
-    const double rudderStep = 0.05;
+  void _handleInput(double dt) {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
 
-    if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      if (keysPressed.contains(LogicalKeyboardKey.keyW)) {
-        yacht.throttle = (yacht.throttle + throttleStep).clamp(-1.0, 1.0);
-      }
-      if (keysPressed.contains(LogicalKeyboardKey.keyS)) {
-        yacht.throttle = (yacht.throttle - throttleStep).clamp(-1.0, 1.0);
-      }
-      if (keysPressed.contains(LogicalKeyboardKey.keyA)) {
-        yacht.targetRudderAngle = (yacht.targetRudderAngle - rudderStep).clamp(-1.0, 1.0);
-      }
-      if (keysPressed.contains(LogicalKeyboardKey.keyD)) {
-        yacht.targetRudderAngle = (yacht.targetRudderAngle + rudderStep).clamp(-1.0, 1.0);
-      }
-      if (keysPressed.contains(LogicalKeyboardKey.space)) {
-        yacht.throttle = 0.0;
-        yacht.targetRudderAngle = 0.0;
-      }
+    // Скорость движения рычагов (от 0 до 1 за 1.5 сек)
+    const double throttleChangeSpeed = 0.8;
+    const double rudderChangeSpeed = 1.2;
+
+    // ГАЗ (W/S)
+    if (keys.contains(LogicalKeyboardKey.keyW)) {
+      yacht.targetThrottle = (yacht.targetThrottle + throttleChangeSpeed * dt).clamp(-1.0, 1.0);
+    } else if (keys.contains(LogicalKeyboardKey.keyS)) {
+      yacht.targetThrottle = (yacht.targetThrottle - throttleChangeSpeed * dt).clamp(-1.0, 1.0);
     }
-    return KeyEventResult.handled;
+
+    // РУЛЬ (A/D)
+    if (keys.contains(LogicalKeyboardKey.keyA)) {
+      yacht.targetRudderAngle = (yacht.targetRudderAngle - rudderChangeSpeed * dt).clamp(-1.0, 1.0);
+    } else if (keys.contains(LogicalKeyboardKey.keyD)) {
+      yacht.targetRudderAngle = (yacht.targetRudderAngle + rudderChangeSpeed * dt).clamp(-1.0, 1.0);
+    }
+
+    // ПРОБЕЛ - экстренный сброс в нейтраль
+    if (keys.contains(LogicalKeyboardKey.space)) {
+      yacht.targetThrottle = 0;
+      yacht.targetRudderAngle = 0;
+    }
   }
 
   void onOutOfBounds() {
@@ -274,15 +287,14 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void showMooringButtons(bool bow, bool stern) {
-    // Если ничего не изменилось, не тратим ресурсы на перерисовку
+    // Если состояние реально не изменилось — выходим
     if (bowButtonActive == bow && sternButtonActive == stern) return;
 
     bowButtonActive = bow;
     sternButtonActive = stern;
 
-    // Если хотя бы одна кнопка должна гореть
     if (bowButtonActive || sternButtonActive) {
-      // Перезапускаем оверлей, чтобы Flutter перестроил Row с двумя кнопками
+      // Важно: Сначала удаляем, потом добавляем, чтобы Flutter перерисовал виджет
       overlays.remove('MooringMenu');
       overlays.add('MooringMenu');
     } else {
@@ -291,14 +303,20 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void hideMooringButtons() {
+    // Если кнопки и так не активны, ничего не делаем
+    if (!bowButtonActive && !sternButtonActive) return;
+
     overlays.remove('MooringMenu');
+    // ОБЯЗАТЕЛЬНО сбрасываем флаги, иначе следующая проверка их не покажет
+    bowButtonActive = false;
+    sternButtonActive = false;
   }
 
 // Внутри класса YachtMasterGame (lib/game/yacht_game.dart)
 
   void moerBow() {
     if (yacht.canMoerBow) {
-      final bollardY = dock.position.y + dock.size.y;
+      final bollardY = dock.position.y + (dock.size.y * Dock.bollardYFactor);
       List<Vector2> bollards = dock.bollardXPositions
           .map((x) => Vector2(dock.position.x + x, bollardY))
           .toList();
@@ -306,27 +324,27 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       Vector2 targetBollard = bollards.reduce((a, b) =>
       yacht.bowWorldPosition.distanceTo(a) < yacht.bowWorldPosition.distanceTo(b) ? a : b);
 
-      // Считаем, какой борт ближе
       double distRight = yacht.bowRightWorld.distanceTo(targetBollard);
       double distLeft = yacht.bowLeftWorld.distanceTo(targetBollard);
 
       yacht.bowMooredTo = targetBollard;
 
-      // ГЕОМЕТРИЯ:
-      // X: 0.4 (10% от края носа)
-      // Y: 0.35 (это 50% - 15% отступа от края борта)
-      double mooringX = yacht.size.x * 0.4;
-      double mooringY = yacht.size.y * 0.35;
+      double mooringX = yacht.size.x * 0.45; // Сдвинул чуть ближе к краю
+      double mooringY = yacht.size.y * 0.48;
 
       yacht.bowAnchorPointLocal = distRight < distLeft
-          ? Vector2(mooringX, mooringY)  // Правый борт (внутри)
-          : Vector2(mooringX, -mooringY); // Левый борт (внутри)
+          ? Vector2(mooringX, mooringY)
+          : Vector2(mooringX, -mooringY);
+
+      // ФИКСАЦИЯ ДЛИНЫ: Запоминаем расстояние в момент нажатия
+      Vector2 anchorWorld = yacht.localToParent(yacht.bowAnchorPointLocal!);
+      yacht.bowRopeRestLength = anchorWorld.distanceTo(targetBollard);
     }
   }
 
   void moerStern() {
     if (yacht.canMoerStern) {
-      final bollardY = dock.position.y + dock.size.y;
+      final bollardY = dock.position.y + (dock.size.y * Dock.bollardYFactor);
       List<Vector2> bollards = dock.bollardXPositions
           .map((x) => Vector2(dock.position.x + x, bollardY))
           .toList();
@@ -339,15 +357,19 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
       yacht.sternMooredTo = targetBollard;
 
-      // Аналогично для кормы
-      double mooringX = -yacht.size.x * 0.4;
-      double mooringY = yacht.size.y * 0.35;
+      double mooringX = -yacht.size.x * 0.45;
+      double mooringY = yacht.size.y * 0.48;
 
       yacht.sternAnchorPointLocal = distRight < distLeft
           ? Vector2(mooringX, mooringY)
           : Vector2(mooringX, -mooringY);
+
+      // ФИКСАЦИЯ ДЛИНЫ: Запоминаем расстояние в момент нажатия
+      Vector2 anchorWorld = yacht.localToParent(yacht.sternAnchorPointLocal!);
+      yacht.sternRopeRestLength = anchorWorld.distanceTo(targetBollard);
     }
   }
+
 
   void _calculateBollardPositions(double dockX, double dockWidth) {
     playerBollards.clear();

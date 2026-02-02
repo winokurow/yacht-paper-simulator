@@ -1,138 +1,120 @@
 import 'dart:math';
-
+import 'dart:ui';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:yacht/ui/paper_gauge.dart';
 import 'package:yacht/ui/steering_wheel.dart';
 import 'package:yacht/ui/throttle_lever.dart';
-
 import '../core/constants.dart';
 import '../game/yacht_game.dart';
 
-class DashboardBase extends PositionComponent with HasGameReference<YachtMasterGame> {
+class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
   late PaperGauge speedGauge;
   late PaperGauge windGauge;
+  late ThrottleLever throttle;
+  late SteeringWheel wheel;
 
-  DashboardBase() : super(priority: 100);
+  final double bottomPanelHeight = 310;
+  final double topPanelHeight = 140;
 
   @override
   Future<void> onLoad() async {
-    size = Vector2(600, 140);
-    anchor = Anchor.bottomCenter;
+    size = gameRef.camera.viewport.virtualSize;
+    anchor = Anchor.topLeft;
+    position = Vector2.zero();
 
-// Спидометр
+    // --- ВЕРХНЯЯ ЛЕВАЯ ПАНЕЛЬ (Приборы) ---
+    // Сдвигаем их к левому краю (x: 75 и x: 195)
     speedGauge = PaperGauge(
       label: "KNOTS",
-      type: GaugeType.linear, // Линейная шкала
+      type: GaugeType.linear,
       minVal: 0,
-      maxVal: 8,
-      position: Vector2(size.x * 0.3, size.y * 0.5),
-      size: Vector2(100, 100),
+      maxVal: 10,
+      position: Vector2(75, 75),
+      size: Vector2(110, 110),
     );
+    add(speedGauge);
 
-// Ветроуказатель
     windGauge = PaperGauge(
       label: "WIND",
-      type: GaugeType.circular, // Круговая шкала
+      type: GaugeType.circular,
       minVal: -pi,
       maxVal: pi,
-      position: Vector2(size.x * 0.5, size.y * 0.5),
-      size: Vector2(100, 100),
+      position: Vector2(195, 75),
+      size: Vector2(110, 110),
     );
-
-    add(speedGauge);
     add(windGauge);
 
-    // Рычаг газа слева
-    final throttle = ThrottleLever(
-      position: Vector2(size.x * 0.12, size.y * 0.5),
-    );
+    // --- НИЖНИЕ ПАНЕЛИ (Без изменений, одинаковая высота) ---
+    double bottomY = size.y - (bottomPanelHeight / 2) - 10;
+
+    throttle = ThrottleLever();
+    throttle.position = Vector2(85, bottomY);
     add(throttle);
 
-    // Добавляем штурвал справа
-    final wheel = SteeringWheel(
-    position: Vector2(size.x * 0.82, size.y * 0.5),
+    wheel = SteeringWheel(
+      position: Vector2(size.x - 160, bottomY),
     );
     add(wheel);
   }
 
   @override
+  void render(Canvas canvas) {
+    // 1. ВЕРХНИЙ ЛЕВЫЙ ОСТРОВ (Информационный)
+    _drawIsland(canvas, Rect.fromLTWH(
+        10,
+        10,
+        260, // Компактная ширина под два прибора
+        topPanelHeight
+    ));
+
+    // 2. ЛЕВЫЙ НИЖНИЙ ОСТРОВ (Газ)
+    _drawIsland(canvas, Rect.fromLTWH(
+        10,
+        size.y - bottomPanelHeight - 10,
+        170,
+        bottomPanelHeight
+    ));
+
+    // 3. ПРАВЫЙ НИЖНИЙ ОСТРОВ (Штурвал)
+    _drawIsland(canvas, Rect.fromLTWH(
+        size.x - 320,
+        size.y - bottomPanelHeight - 10,
+        310,
+        bottomPanelHeight
+    ));
+  }
+
+  void _drawIsland(Canvas canvas, Rect rect) {
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(15));
+
+    // Тень
+    canvas.drawRRect(
+      rrect.shift(const Offset(4, 4)),
+      Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // Картон
+    canvas.drawRRect(rrect, Paint()..color = const Color(0xFFE0C9A6));
+
+    // Текстура бумаги
+    final linePaint = Paint()..color = Colors.black.withOpacity(0.04)..strokeWidth = 1;
+    for (double y = rect.top + 20; y < rect.bottom; y += 25) {
+      canvas.drawLine(Offset(rect.left + 15, y), Offset(rect.right - 15, y), linePaint);
+    }
+
+    // Контур
+    canvas.drawRRect(
+      rrect.deflate(4),
+      Paint()..color = Colors.black.withOpacity(0.1)..style = PaintingStyle.stroke..strokeWidth = 2,
+    );
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
-
-    // 1. Переводим пиксели в "узлы"
-    // Делим на pixelRatio, чтобы получить чистые единицы скорости
-    double actualKnots = game.yacht.velocity.length / Constants.pixelRatio;
-
-    // 2. Вместо прямой установки, передаем значение для сглаживания
-    // (нам нужно добавить поле targetValue в PaperGauge или сглаживать здесь)
-    speedGauge.updateValue(actualKnots, dt);
-
-    // Ветер (направление обычно не требует сильного сглаживания)
+    double speed = gameRef.yacht.velocity.length / Constants.pixelRatio;
+    speedGauge.updateValue(speed, dt);
     windGauge.currentValue = Constants.windDirection;
-
-    // Обновляем скорость: перевод пикселей/сек в узлы
-    speedGauge.currentValue = game.yacht.velocity.length;
-
-    // Обновляем ветер: направление ветра
-    windGauge.currentValue = Constants.windDirection;
-  }
-
-  @override
-  void onGameResize(Vector2 gameSize) {
-    super.onGameResize(gameSize);
-    position = Vector2(gameSize.x / 2, gameSize.y - 10);
-  }
-
-  @override
-  void render(Canvas canvas) {
-    final rect = size.toRect();
-
-    // 1. Рисуем тень (картон приподнят над столом)
-    final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0);
-
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(rect.shift(const Offset(5, 5)), const Radius.circular(12)),
-        shadowPaint
-    );
-
-    // 2. Рисуем основную текстуру картона (светло-бежевый)
-    final cardboardPaint = Paint()..color = const Color(0xFFE0C9A6);
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(12)),
-        cardboardPaint
-    );
-
-    // 3. Декоративный "карандашный" кант по краю
-    final borderPaint = Paint()
-      ..color = Colors.black26
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(rect.deflate(4), const Radius.circular(8)),
-        borderPaint
-    );
-
-    // 4. Имитация текстуры бумаги (несколько легких линий)
-    _drawPaperTexture(canvas);
-  }
-
-  void _drawPaperTexture(Canvas canvas) {
-    final texturePaint = Paint()
-      ..color = Colors.black.withOpacity(0.05)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    // Рисуем пару горизонтальных линий, как на оберточной бумаге
-    for (var i = 1; i < 4; i++) {
-      canvas.drawLine(
-        Offset(20, size.y * 0.25 * i),
-        Offset(size.x - 20, size.y * 0.25 * i),
-        texturePaint,
-      );
-    }
   }
 }
