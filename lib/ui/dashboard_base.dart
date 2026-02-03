@@ -13,6 +13,7 @@ class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
   late PaperGauge windGauge;
   late ThrottleLever throttle;
   late SteeringWheel wheel;
+  late TextComponent statusText;
 
   final double bottomPanelHeight = 310;
   final double topPanelHeight = 140;
@@ -56,6 +57,22 @@ class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
       position: Vector2(size.x - 160, bottomY),
     );
     add(wheel);
+
+    // Создаем текстовый компонент
+    statusText = TextComponent(
+      text: gameRef.statusMessage,
+      position: Vector2(size.x / 2, 120), // Центрируем внизу верхней панели
+      anchor: Anchor.center,
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 14,
+          color: Colors.black87,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace', // Стиль печатной машинки
+        ),
+      ),
+    );
+    add(statusText);
   }
 
   @override
@@ -116,5 +133,9 @@ class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
     double speed = gameRef.yacht.velocity.length / Constants.pixelRatio;
     speedGauge.updateValue(speed, dt);
     windGauge.currentValue = Constants.windDirection;
+
+    if (statusText.text != gameRef.statusMessage) {
+      statusText.text = gameRef.statusMessage;
+    }
   }
 }

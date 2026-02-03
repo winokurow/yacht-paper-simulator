@@ -22,7 +22,7 @@ class Constants {
   static const double propWashFactor = 1.2;
 
   static const double lateralDragMultiplier = 2000.0; // Сопротивление боковому дрейфу
-  static const PropellerType propType = PropellerType.rightHanded;
+  static PropellerType propType = PropellerType.rightHanded;
   static const double propWalkEffect = 3;
   static const double yachtInertia = 3000.0;
 

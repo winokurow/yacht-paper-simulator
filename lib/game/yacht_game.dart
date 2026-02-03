@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-
 import 'package:flame/camera.dart';
 import 'package:flame/components.dart';
 import 'package:flame/experimental.dart' show Rectangle;
@@ -7,117 +6,105 @@ import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:yacht/components/yacht_player.dart';
+
+import '../components/yacht_player.dart';
 import '../components/MooredYacht.dart';
 import '../components/dock_component.dart';
 import '../components/sea_component.dart';
 import '../core/constants.dart';
-
+import '../model/level_config.dart';
 import '../ui/dashboard_base.dart';
 
 class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCollisionDetection {
   late YachtPlayer yacht;
-  late Dock dock;
+  Dock? dock;
   late Sea sea;
-  String statusMessage = "Ready to moor";
+
+  // Состояние уровня
+  LevelConfig? currentLevel;
+  String statusMessage = "Waiting for command...";
+  double activeWindSpeed = 0;
+  double activeCurrentSpeed = 0;
+  double activeCurrentDirection = 0;
+
   bool bowButtonActive = false;
   bool sternButtonActive = false;
   bool _victoryTriggered = false;
 
-  final List<Map<String, dynamic>> marinaConfig = [
-    {
-      'type': 'boat',
-      'width': 3.0,     // Узкий катер
-      'length': 8.0,
-      'sprite': 'yacht_small.png',
-      'hitboxType': 'pointy', // Острый нос
-      'isNoseRight': true,    // Нос смотрит вправо
-    },
-    {
-      'type': 'boat',
-      'width': 4.0,     // Средняя парусная яхта
-      'length': 12.0,
-      'sprite': 'yacht_medium.png',
-      'hitboxType': 'pointy', // Острый нос
-      'isNoseRight': false,    // Нос смотрит вправо
-    },
-    {
-      'type': 'boat',
-      'width': 5.0,     // Большая моторная яхта
-      'length': 10.0,
-      'sprite': 'yacht_motor.png',
-      'hitboxType': 'pointy', // Острый нос
-      'isNoseRight': true,    // Нос смотрит вправо
-    },
-    {
-      'type': 'player_slot' // Твое свободное место (индекс 3)
-    },
-    {
-      'type': 'boat',
-      'width': 4.0,
-      'length': 12.0,
-      'sprite': 'yacht_medium.png',
-      'hitboxType': 'pointy', // Острый нос
-      'isNoseRight': false,    // Нос смотрит вправо
-    },
-    {
-      'type': 'boat',
-      'width': 3.0,
-      'length': 9.0,
-      'sprite': 'yacht_small.png',
-      'hitboxType': 'pointy', // Острый нос
-      'isNoseRight': true,    // Нос смотрит вправо
-    },
-    {
-      'type': 'boat',
-      'width': 10.0,     // Самый крупный объект в марине
-      'length': 22.0,
-      'sprite': 'yacht_large.png',
-      'hitboxType': 'square', // Острый нос
-      'isNoseRight': true,    // Нос смотрит вправо
-    },
-  ];
   List<double> playerBollards = [];
-  final Rect playArea = const Rect.fromLTWH(0, 0, 2000, 3000);
+  final Rect playArea = const Rect.fromLTWH(0, 0, 3000, 4000);
+
+  // В начало класса YachtMasterGame
+  double _lastWindMult = 1.0;
+  bool _lastIsRightHanded = true;
+
+  // Поля для хранения стартовых настроек
+  LevelConfig? _pendingLevel;
+  double _pendingWind = 1.0;
+  bool _pendingRightHanded = true;
+
+  @override
+  Color backgroundColor() => const Color(0xFF3E2723);
 
   @override
   Future<void> onLoad() async {
-    debugMode = false;
-
-    // 1. ПЕРВЫМ ДЕЛОМ инициализируем яхту
-    yacht = YachtPlayer(startAngleDegrees: -90);
-
-    // 2. Теперь настраиваем камеру (теперь yacht существует!)
+    // 1. Сначала стандартная настройка систем
     camera.viewport = FixedResolutionViewport(resolution: Vector2(1280, 720));
-    camera.follow(yacht);
-    camera.viewfinder.zoom = 1.0;
     camera.viewfinder.anchor = Anchor.center;
+    camera.viewport.add(DashboardBase());
 
-    // 1. ПАРАМЕТРЫ ПРИЧАЛА
-    const double dockWidth = 1200.0;
-    const double dockHeight = 120.0;
-    final double dockX = (playArea.width / 2) - (dockWidth / 2);
-    final double dockY = playArea.top;
+    // 2. ЕСЛИ у нас есть запланированный уровень — запускаем его
+    if (_pendingLevel != null) {
+      startLevel(_pendingLevel!, _pendingWind, _pendingRightHanded);
+    }
+  }
 
-    // 2. СНАЧАЛА СЧИТАЕМ ТУМБЫ
-    _calculateBollardPositions(dockX, dockWidth); // Новый вспомогательный метод
+  // Новый метод для подготовки запуска из диалога
+  void prepareStart(LevelConfig config, double wind, bool rightHanded) {
+    _pendingLevel = config;
+    _pendingWind = wind;
+    _pendingRightHanded = rightHanded;
+  }
 
-    // 3. ТЕПЕРЬ ИНИЦИАЛИЗИРУЕМ ПРИЧАЛ С ГОТОВЫМ СПИСКОМ
-    dock = Dock(
-      position: Vector2(dockX, dockY),
-      size: Vector2(dockWidth, dockHeight),
-      bollardXPositions: playerBollards, // Теперь список уже не пуст!
-    );
-    dock.priority = -5;
-    world.add(dock);
+  // --- ЛОГИКА ЗАПУСКА УРОВНЯ ---
+  void startLevel(LevelConfig config, double windMult, bool isRightHanded) {
+    // Сохраняем для сброса
+    currentLevel = config;
+    _lastWindMult = windMult;
+    _lastIsRightHanded = isRightHanded;
 
-    // 3. ИНИЦИАЛИЗАЦИЯ ЯХТЫ
-    final double startY = dock.position.y + dock.size.y + (50 * Constants.pixelRatio);
-    yacht.position = Vector2(playArea.width / 2, startY);
-    yacht.priority = 10;
+    _victoryTriggered = false;
+    statusMessage = config.name;
+
+    world.removeAll(world.children);
+
+    // Инициализируем яхту
+    yacht = YachtPlayer(startAngleDegrees: config.startAngle);
+
+    activeWindSpeed = config.defaultWindSpeed * windMult;
+    activeCurrentSpeed = config.defaultCurrentSpeed;
+    activeCurrentDirection = config.currentDirection;
+    Constants.propType = isRightHanded ? PropellerType.rightHanded : PropellerType.leftHanded;
+
+    _buildEnvironment(config);
+
+    yacht.position = config.startPos * Constants.pixelRatio;
     world.add(yacht);
 
-    // 4. ФОН (Стол)
+    camera.follow(yacht);
+
+    // ВАЖНО: Убеждаемся, что движок работает
+    resumeEngine();
+  }
+
+  void _buildEnvironment(LevelConfig config) {
+    // Фоновое море
+    sea = Sea(size: Vector2(playArea.width, playArea.height));
+    sea.position = Vector2(playArea.left, playArea.top);
+    sea.priority = -15;
+    world.add(sea);
+
+    // Текстура стола под бумагой
     world.add(RectangleComponent(
       size: Vector2(10000, 10000),
       position: Vector2(-4000, -3000),
@@ -125,176 +112,232 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       priority: -20,
     ));
 
-    // 5. МОРЕ (Лист бумаги)
-    sea = Sea(size: Vector2(playArea.width, playArea.height));
-    sea.position = Vector2(playArea.left, playArea.top);
-    sea.priority = -15;
-    world.add(sea);
-
-    // 6. НАСТРОЙКА МАРИНЫ (Пришвартованные яхты)
-    _setupMarina();
-
-    // 7. НАСТРОЙКА КАМЕРЫ
-    camera.viewfinder.anchor = Anchor.center;
-    camera.setBounds(Rectangle.fromLTWH(
-        playArea.left, playArea.top, playArea.width, playArea.height
-    ));
-
-    // 8. ИНТЕРФЕЙС
-    // В методе onLoad класса YachtMasterGame
-        final dashboard = DashboardBase();
-
-    // 4. Добавляем во вьюпорт
-        camera.viewport.add(dashboard);
-  }
-
-  void _setupMarina() {
-    final int totalSlips = marinaConfig.length;
-    final double slipStep = (dock.size.x / totalSlips).roundToDouble();
-    final double dockBottomY = (dock.position.y + dock.size.y).roundToDouble();
-
-    for (int i = 0; i < totalSlips; i++) {
-      final config = marinaConfig[i];
-      final double posX = (dock.position.x + (i * slipStep) + (slipStep / 2)).roundToDouble();
-
-      if (config['type'] == 'player_slot') {
-        _addParkingMarker(Vector2(posX, dockBottomY), slipStep);
-        continue; // Тумбы уже добавлены в onLoad!
-      }
-
-      // Логика добавления MooredYacht...
-      double boatWidthPx = (config['width'] * Constants.pixelRatio).roundToDouble();
-      double posY = (dockBottomY + (boatWidthPx / 2) + 2).roundToDouble();
-
-      world.add(MooredYacht(
-        position: Vector2(posX, posY),
-        spritePath: config['sprite'],
-        lengthInMeters: config['length'],
-        widthInMeters: config['width'],
-        hitboxType: config['hitboxType'] ?? 'pointy',
-        isNoseRight: config['isNoseRight'] ?? true,
-      ));
+    // Выбор строителя в зависимости от типа уровня
+    switch (config.envType) {
+      case EnvironmentType.marina:
+        _setupMarinaLayout(config);
+        break;
+      case EnvironmentType.river:
+        _setupRiverLayout(config);
+        break;
+      case EnvironmentType.openSea:
+        _setupOpenSeaLayout(config);
+        break;
     }
   }
 
-  void _addParkingMarker(Vector2 pos, double slipWidth) {
-    // 1. Настраиваем размеры
-    final double markerWidth = slipWidth * 0.9;
-    // Высота теперь равна длине яхты + небольшой запас, но не бесконечная
-    final double markerHeight = yacht.size.x * 1.2;
+  void _setupMarinaLayout(LevelConfig config) {
 
-    // 2. Рассчитываем позицию (верхний край рамки = нижний край причала)
-    final double topOfMarkerY = dock.position.y + dock.size.y;
-    final Vector2 markerPos = Vector2(pos.x, topOfMarkerY);
+    const double dockWidth = 1200.0;
+    final double dockX = (playArea.width / 2) - (dockWidth / 2);
 
-    // 3. Внешняя зеленая рамка
-    final marker = RectangleComponent(
-      position: markerPos,
-      size: Vector2(markerWidth, markerHeight),
-      anchor: Anchor.topCenter, // Привязка к верхнему центру
-      paint: Paint()
-        ..color = Colors.green.withOpacity(0.7)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-      priority: -1,
+    _calculateBollardPositions(dockX, dockWidth, config.marinaLayout);
+
+    dock = Dock(
+      position: Vector2(dockX, playArea.top),
+      size: Vector2(dockWidth, 120.0),
+      bollardXPositions: playerBollards,
     );
+    dock!.priority = -5;
+    world.add(dock!);
 
-    // 4. Внутренняя заливка
-    final fill = RectangleComponent(
-      position: markerPos,
-      size: marker.size,
-      anchor: Anchor.topCenter,
-      paint: Paint()..color = Colors.green.withOpacity(0.15),
-      priority: -2,
-    );
+    final double slipStep = dockWidth / config.marinaLayout.length;
+    final double dockBottomY = dock!.position.y + dock!.size.y;
 
-    world.add(marker);
-    world.add(fill);
+    for (int i = 0; i < config.marinaLayout.length; i++) {
+      final p = config.marinaLayout[i];
+      final double posX = dock!.position.x + (i * slipStep) + (slipStep / 2);
+
+      if (p.type == 'player_slot') {
+        _addParkingMarker(Vector2(posX, dockBottomY), slipStep);
+      } else {
+        // Ширина лодки в метрах -> в пиксели
+        double boatWidthPx = p.width * Constants.pixelRatio;
+        double boatLengthPx = p.length * Constants.pixelRatio;
+        world.add(MooredYacht(
+          position: Vector2(posX, dockBottomY + (boatWidthPx / 2) + 2),
+          spritePath: p.sprite ?? 'yacht_medium.png',
+          lengthInMeters: p.length,
+          widthInMeters: p.width,
+          isNoseRight: p.isNoseRight,
+        ));
+      }
+    }
   }
+
+  void _setupRiverLayout(LevelConfig config) {
+    // Тут можно добавить берега реки
+    updateStatus("River flow detected: ${config.defaultCurrentSpeed} kts");
+  }
+
+  void _setupOpenSeaLayout(LevelConfig config) {
+    // В открытом море причала нет
+    dock = null;
+    updateStatus("High seas. Maintain position.");
+  }
+
+  // --- ИГРОВОЙ ЦИКЛ ---
 
   @override
   void update(double dt) {
     super.update(dt);
-
-    // 1. Динамический зум (уже с округлением)
     _applyDynamicZoom(dt);
 
-    // 2. РУЧНОЕ СЛЕДОВАНИЕ КАМЕРЫ С ПИКСЕЛЬНОЙ ПРИВЯЗКОЙ
-    // Мы берем позицию яхты и округляем её до целых чисел.
-    // Это гарантирует, что камера не стоит "между пикселями".
+    // Плавное следование камеры (пиксельная привязка)
     camera.viewfinder.position = Vector2(
       yacht.position.x.roundToDouble(),
       yacht.position.y.roundToDouble(),
     );
+
     _handleInput(dt);
     _checkVictoryCondition();
+    _checkOutOfBounds();
   }
 
   void _applyDynamicZoom(double dt) {
-    final dockCenter = dock.position + (dock.size / 2);
-    final yachtCenter = yacht.position;
-
-    // Рассчитываем желаемый зум на основе расстояния
-    double dx = (yachtCenter.x - dockCenter.x).abs() + 600;
-    double dy = (yachtCenter.y - dockCenter.y).abs() + 600;
-
-    double zoomX = size.x / dx;
-    double zoomY = size.y / dy;
-
-    // Целевой зум
-    double targetZoom = math.min(zoomX, zoomY).clamp(0.4, 1.2);
-
-    // ПЛАВНОСТЬ: Используем lerp для мягкого перехода
-    double currentZoom = camera.viewfinder.zoom;
-    double newZoom = currentZoom + (targetZoom - currentZoom) * 1.5 * dt;
-
-    // ЗАЩИТА: Округляем до 3 знаков после запятой.
-    // Этого достаточно для плавности глазу, но это убирает бесконечные микро-колебания.
-    camera.viewfinder.zoom = (newZoom * 1000).roundToDouble() / 1000;
+    double targetZoom = 1.0;
+    if (dock != null) {
+      double dist = (yacht.position.y - dock!.position.y).abs();
+      targetZoom = (1.2 - (dist / 1000)).clamp(0.6, 1.1);
+    } else {
+      double speedFactor = yacht.velocity.length / 500;
+      targetZoom = (1.1 - speedFactor).clamp(0.7, 1.0);
+    }
+    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * 1.5 * dt;
   }
 
   void _handleInput(double dt) {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    if (keys.contains(LogicalKeyboardKey.keyW)) yacht.targetThrottle += 0.8 * dt;
+    if (keys.contains(LogicalKeyboardKey.keyS)) yacht.targetThrottle -= 0.8 * dt;
+    if (keys.contains(LogicalKeyboardKey.keyA)) yacht.targetRudderAngle -= 1.2 * dt;
+    if (keys.contains(LogicalKeyboardKey.keyD)) yacht.targetRudderAngle += 1.2 * dt;
 
-    // Скорость движения рычагов (от 0 до 1 за 1.5 сек)
-    const double throttleChangeSpeed = 0.8;
-    const double rudderChangeSpeed = 1.2;
+    yacht.targetThrottle = yacht.targetThrottle.clamp(-1.0, 1.0);
+    yacht.targetRudderAngle = yacht.targetRudderAngle.clamp(-1.0, 1.0);
 
-    // ГАЗ (W/S)
-    if (keys.contains(LogicalKeyboardKey.keyW)) {
-      yacht.targetThrottle = (yacht.targetThrottle + throttleChangeSpeed * dt).clamp(-1.0, 1.0);
-    } else if (keys.contains(LogicalKeyboardKey.keyS)) {
-      yacht.targetThrottle = (yacht.targetThrottle - throttleChangeSpeed * dt).clamp(-1.0, 1.0);
-    }
-
-    // РУЛЬ (A/D)
-    if (keys.contains(LogicalKeyboardKey.keyA)) {
-      yacht.targetRudderAngle = (yacht.targetRudderAngle - rudderChangeSpeed * dt).clamp(-1.0, 1.0);
-    } else if (keys.contains(LogicalKeyboardKey.keyD)) {
-      yacht.targetRudderAngle = (yacht.targetRudderAngle + rudderChangeSpeed * dt).clamp(-1.0, 1.0);
-    }
-
-    // ПРОБЕЛ - экстренный сброс в нейтраль
     if (keys.contains(LogicalKeyboardKey.space)) {
       yacht.targetThrottle = 0;
       yacht.targetRudderAngle = 0;
     }
   }
 
-  void onOutOfBounds() {
-    pauseEngine(); // Останавливаем игру, чтобы лодка не уплывала дальше
+  // --- СОСТОЯНИЯ (ПОБЕДА / ПРОИГРЫШ) ---
+
+  void _checkVictoryCondition() {
+    if (_victoryTriggered) return;
+    bool moored = yacht.bowMooredTo != null && yacht.sternMooredTo != null;
+    bool stopped = yacht.velocity.length < (0.2 * Constants.pixelRatio);
+
+    if (moored && stopped) {
+      _victoryTriggered = true;
+      pauseEngine();
+      statusMessage = "MISSION ACCOMPLISHED";
+      overlays.add('Victory');
+    }
+  }
+
+  void _checkOutOfBounds() {
+    if (!playArea.contains(yacht.position.toOffset())) {
+      onGameOver("Vessel left the operations area");
+    }
+  }
+
+  void onGameOver(String reason) {
+    pauseEngine();
+    statusMessage = "FAILED: $reason";
     overlays.add('GameOver');
   }
 
+  void updateStatus(String msg) {
+    statusMessage = msg;
+  }
+
+  // --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ---
+
+  void _calculateBollardPositions(double dockX, double dockWidth, List<BoatPlacement> layout) {
+    playerBollards.clear();
+    final double slipStep = dockWidth / layout.length;
+    for (int i = 0; i < layout.length; i++) {
+      if (layout[i].type == 'player_slot') {
+        double slotLeft = i * slipStep;
+        playerBollards.add(slotLeft + (slipStep * 0.2));
+        playerBollards.add(slotLeft + (slipStep * 0.8));
+        break;
+      }
+    }
+  }
+
+  void _addParkingMarker(Vector2 pos, double slipWidth) {
+    final markerSize = Vector2(slipWidth * 0.9, yacht.size.x * 1.2);
+    world.add(RectangleComponent(
+      position: pos,
+      size: markerSize,
+      anchor: Anchor.topCenter,
+      paint: Paint()..color = Colors.green.withOpacity(0.4)..style = PaintingStyle.stroke..strokeWidth = 3,
+      priority: -1,
+    ));
+    world.add(RectangleComponent(
+      position: pos,
+      size: markerSize,
+      anchor: Anchor.topCenter,
+      paint: Paint()..color = Colors.green.withOpacity(0.1),
+      priority: -2,
+    ));
+  }
+
+  // Швартовка
+  void moerBow() {
+    if (dock == null || !yacht.canMoerBow) return;
+    _performMooring(isBow: true);
+  }
+
+  void moerStern() {
+    if (dock == null || !yacht.canMoerStern) return;
+    _performMooring(isBow: false);
+  }
+
+  void _performMooring({required bool isBow}) {
+    final bollardY = dock!.position.y + (dock!.size.y * Dock.bollardYFactor);
+    final bollards = playerBollards.map((x) => Vector2(dock!.position.x + x, bollardY)).toList();
+    final currentPos = isBow ? yacht.bowWorldPosition : yacht.sternWorldPosition;
+
+    Vector2 target = bollards.reduce((a, b) => currentPos.distanceTo(a) < currentPos.distanceTo(b) ? a : b);
+
+    if (isBow) {
+      yacht.bowMooredTo = target;
+      yacht.bowRopeRestLength = yacht.bowWorldPosition.distanceTo(target);
+      updateStatus("Bow line secured");
+    } else {
+      yacht.sternMooredTo = target;
+      yacht.sternRopeRestLength = yacht.sternWorldPosition.distanceTo(target);
+      updateStatus("Stern line secured");
+    }
+  }
+
+  void resetGame() {
+    if (currentLevel == null) return;
+
+    // 1. Убираем все всплывающие окна
+    overlays.removeAll(['GameOver', 'Victory', 'MooringMenu']);
+
+    // 2. Перезапускаем уровень с сохраненными настройками
+    startLevel(currentLevel!, _lastWindMult, _lastIsRightHanded);
+
+    // 3. Сбрасываем сообщение в интерфейсе
+    updateStatus("Level Restarted");
+  }
+
   void showMooringButtons(bool bow, bool stern) {
-    // Если состояние реально не изменилось — выходим
+    // Предотвращаем мерцание: если состояние кнопок не изменилось, ничего не делаем
     if (bowButtonActive == bow && sternButtonActive == stern) return;
 
     bowButtonActive = bow;
     sternButtonActive = stern;
 
+    // Если хотя бы одна кнопка должна быть видна — показываем оверлей
     if (bowButtonActive || sternButtonActive) {
-      // Важно: Сначала удаляем, потом добавляем, чтобы Flutter перерисовал виджет
+      // Сначала удаляем старый, чтобы Flutter перерисовал виджет с новыми параметрами
       overlays.remove('MooringMenu');
       overlays.add('MooringMenu');
     } else {
@@ -303,131 +346,11 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void hideMooringButtons() {
-    // Если кнопки и так не активны, ничего не делаем
+    // Если кнопки и так скрыты, выходим
     if (!bowButtonActive && !sternButtonActive) return;
 
     overlays.remove('MooringMenu');
-    // ОБЯЗАТЕЛЬНО сбрасываем флаги, иначе следующая проверка их не покажет
     bowButtonActive = false;
     sternButtonActive = false;
-  }
-
-// Внутри класса YachtMasterGame (lib/game/yacht_game.dart)
-
-  void moerBow() {
-    if (yacht.canMoerBow) {
-      final bollardY = dock.position.y + (dock.size.y * Dock.bollardYFactor);
-      List<Vector2> bollards = dock.bollardXPositions
-          .map((x) => Vector2(dock.position.x + x, bollardY))
-          .toList();
-
-      Vector2 targetBollard = bollards.reduce((a, b) =>
-      yacht.bowWorldPosition.distanceTo(a) < yacht.bowWorldPosition.distanceTo(b) ? a : b);
-
-      double distRight = yacht.bowRightWorld.distanceTo(targetBollard);
-      double distLeft = yacht.bowLeftWorld.distanceTo(targetBollard);
-
-      yacht.bowMooredTo = targetBollard;
-
-      double mooringX = yacht.size.x * 0.45; // Сдвинул чуть ближе к краю
-      double mooringY = yacht.size.y * 0.48;
-
-      yacht.bowAnchorPointLocal = distRight < distLeft
-          ? Vector2(mooringX, mooringY)
-          : Vector2(mooringX, -mooringY);
-
-      // ФИКСАЦИЯ ДЛИНЫ: Запоминаем расстояние в момент нажатия
-      Vector2 anchorWorld = yacht.localToParent(yacht.bowAnchorPointLocal!);
-      yacht.bowRopeRestLength = anchorWorld.distanceTo(targetBollard);
-    }
-  }
-
-  void moerStern() {
-    if (yacht.canMoerStern) {
-      final bollardY = dock.position.y + (dock.size.y * Dock.bollardYFactor);
-      List<Vector2> bollards = dock.bollardXPositions
-          .map((x) => Vector2(dock.position.x + x, bollardY))
-          .toList();
-
-      Vector2 targetBollard = bollards.reduce((a, b) =>
-      yacht.sternWorldPosition.distanceTo(a) < yacht.sternWorldPosition.distanceTo(b) ? a : b);
-
-      double distRight = yacht.sternRightWorld.distanceTo(targetBollard);
-      double distLeft = yacht.sternLeftWorld.distanceTo(targetBollard);
-
-      yacht.sternMooredTo = targetBollard;
-
-      double mooringX = -yacht.size.x * 0.45;
-      double mooringY = yacht.size.y * 0.48;
-
-      yacht.sternAnchorPointLocal = distRight < distLeft
-          ? Vector2(mooringX, mooringY)
-          : Vector2(mooringX, -mooringY);
-
-      // ФИКСАЦИЯ ДЛИНЫ: Запоминаем расстояние в момент нажатия
-      Vector2 anchorWorld = yacht.localToParent(yacht.sternAnchorPointLocal!);
-      yacht.sternRopeRestLength = anchorWorld.distanceTo(targetBollard);
-    }
-  }
-
-
-  void _calculateBollardPositions(double dockX, double dockWidth) {
-    playerBollards.clear();
-    final int totalSlips = marinaConfig.length;
-    final double slipStep = dockWidth / totalSlips;
-
-    for (int i = 0; i < totalSlips; i++) {
-      if (marinaConfig[i]['type'] == 'player_slot') {
-        // Рассчитываем положение слота относительно начала причала (локально)
-        double slotLeftLocal = i * slipStep;
-
-        // Ставим тумбы на 20% и 80% ширины слота
-        playerBollards.add(slotLeftLocal + (slipStep * 0.2));
-        playerBollards.add(slotLeftLocal + (slipStep * 0.8));
-        break; // Нашли наш слот, выходим
-      }
-    }
-  }
-
-  void _checkVictoryCondition() {
-    if (_victoryTriggered) return;
-
-    // Условия победы:
-    // 1. Подан носовой
-    // 2. Подан кормовой
-    // 3. Скорость почти нулевая (меньше 0.2 м/с)
-    bool moored = yacht.bowMooredTo != null && yacht.sternMooredTo != null;
-    bool stopped = yacht.velocity.length < (0.2 * Constants.pixelRatio);
-
-    if (moored && stopped) {
-      _victoryTriggered = true;
-      _showVictory();
-    }
-  }
-
-  void _showVictory() {
-    pauseEngine(); // Останавливаем физику
-    overlays.add('Victory');
-  }
-
-// Не забудь обновить метод сброса!
-  void resetGame() {
-    overlays.remove('GameOver');
-    overlays.remove('Victory'); // Убираем окно победы
-    _victoryTriggered = false; // Сбрасываем флаг
-    yacht.resetToInitialState();
-    resumeEngine();
-  }
-
-  void onGameOver(String reason) {
-    // Останавливаем игру
-    pauseEngine();
-
-    // Сохраняем причину для отображения в UI (необязательно, если в UI фиксированный текст)
-    statusMessage = reason;
-
-    // Показываем оверлей проигрыша
-    // Убедись, что 'GameOver' зарегистрирован в main.dart
-    overlays.add('GameOver');
   }
 }
