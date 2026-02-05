@@ -1,7 +1,7 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flame/camera.dart';
 import 'package:flame/components.dart';
-import 'package:flame/experimental.dart' show Rectangle;
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +22,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   // Состояние уровня
   LevelConfig? currentLevel;
+  LevelConfig? _pendingLevel;
   String statusMessage = "Waiting for command...";
   double activeWindSpeed = 0;
   double activeCurrentSpeed = 0;
@@ -32,14 +33,12 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   bool _victoryTriggered = false;
 
   List<double> playerBollards = [];
-  final Rect playArea = const Rect.fromLTWH(0, 0, 3000, 4000);
+  final Rect playArea = const Rect.fromLTWH(0, 0, 10000, 10000);
 
   // В начало класса YachtMasterGame
   double _lastWindMult = 1.0;
   bool _lastIsRightHanded = true;
 
-  // Поля для хранения стартовых настроек
-  LevelConfig? _pendingLevel;
   double _pendingWind = 1.0;
   bool _pendingRightHanded = true;
 
@@ -74,7 +73,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     _lastIsRightHanded = isRightHanded;
 
     _victoryTriggered = false;
-    statusMessage = config.name;
+    statusMessage = "";
 
     world.removeAll(world.children);
 
@@ -91,8 +90,10 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     yacht.position = config.startPos * Constants.pixelRatio;
     world.add(yacht);
 
-    camera.follow(yacht);
+    // Сбрасываем зум камеры на широкий угол при старте
+    camera.viewfinder.zoom = 0.3;
 
+    camera.follow(yacht);
     // ВАЖНО: Убеждаемся, что движок работает
     resumeEngine();
   }
@@ -127,33 +128,40 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void _setupMarinaLayout(LevelConfig config) {
+    // --- НАСТРОЙКИ РАССТОЯНИЙ ---
+    const double slipWidthInMeters = 20.0; // БЫЛО 12.0, СТАЛО 20.0 (расстояние между центрами лодок)
+    const double edgePaddingInMeters = 25.0; // Свободное место по краям причала
 
-    const double dockWidth = 1200.0;
+    final double slipStep = slipWidthInMeters * Constants.pixelRatio;
+    final double edgePadding = edgePaddingInMeters * Constants.pixelRatio;
+
+    // Общая ширина причала
+    final double dockWidth = (slipStep * config.marinaLayout.length) + (edgePadding * 2);
     final double dockX = (playArea.width / 2) - (dockWidth / 2);
 
-    _calculateBollardPositions(dockX, dockWidth, config.marinaLayout);
+    // Обновляем позиции тумб (передаем новый slipWidthInMeters)
+    _calculateBollardPositions(dockX, dockWidth, config.marinaLayout, edgePadding, slipWidthInMeters);
 
     dock = Dock(
-      position: Vector2(dockX, playArea.top),
-      size: Vector2(dockWidth, 120.0),
       bollardXPositions: playerBollards,
+      position: Vector2(dockX, playArea.top),
+      size: Vector2(dockWidth, 140.0),
     );
     dock!.priority = -5;
     world.add(dock!);
 
-    final double slipStep = dockWidth / config.marinaLayout.length;
     final double dockBottomY = dock!.position.y + dock!.size.y;
 
     for (int i = 0; i < config.marinaLayout.length; i++) {
       final p = config.marinaLayout[i];
-      final double posX = dock!.position.x + (i * slipStep) + (slipStep / 2);
+
+      // Позиция лодки с учетом широких слипов
+      final double posX = dock!.position.x + edgePadding + (i * slipStep) + (slipStep / 2);
 
       if (p.type == 'player_slot') {
         _addParkingMarker(Vector2(posX, dockBottomY), slipStep);
       } else {
-        // Ширина лодки в метрах -> в пиксели
         double boatWidthPx = p.width * Constants.pixelRatio;
-        double boatLengthPx = p.length * Constants.pixelRatio;
         world.add(MooredYacht(
           position: Vector2(posX, dockBottomY + (boatWidthPx / 2) + 2),
           spritePath: p.sprite ?? 'yacht_medium.png',
@@ -192,18 +200,30 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     _handleInput(dt);
     _checkVictoryCondition();
     _checkOutOfBounds();
+
   }
 
   void _applyDynamicZoom(double dt) {
-    double targetZoom = 1.0;
-    if (dock != null) {
-      double dist = (yacht.position.y - dock!.position.y).abs();
-      targetZoom = (1.2 - (dist / 1000)).clamp(0.6, 1.1);
+    // Рассчитываем расстояние в МЕТРАХ для простоты логики
+    double distanceInMeters = yacht.position.y / Constants.pixelRatio;
+
+    // ЦЕЛЕВОЙ ЗУМ:
+    // Если мы далеко (>40м) — зум 0.3 (виден весь причал)
+    // Если мы близко (<10м) — зум 0.85 (видны детали швартовки)
+    double targetZoom;
+
+    if (distanceInMeters > 40) {
+      targetZoom = 0.3;
+    } else if (distanceInMeters < 10) {
+      targetZoom = 0.85;
     } else {
-      double speedFactor = yacht.velocity.length / 500;
-      targetZoom = (1.1 - speedFactor).clamp(0.7, 1.0);
+      // Плавный переход между 10 и 40 метрами
+      double t = (distanceInMeters - 10) / 30; // от 0 до 1
+      targetZoom = lerpDouble(0.85, 0.3, t)!;
     }
-    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * 1.5 * dt;
+
+    // Плавное изменение (интерполяция)
+    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 1.2;
   }
 
   void _handleInput(double dt) {
@@ -254,15 +274,18 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   // --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ---
-
-  void _calculateBollardPositions(double dockX, double dockWidth, List<BoatPlacement> layout) {
+  void _calculateBollardPositions(double dockX, double dockWidth, List<BoatPlacement> layout, double edgePadding, double currentSlipWidth) {
     playerBollards.clear();
-    final double slipStep = dockWidth / layout.length;
+    final double slipStep = currentSlipWidth * Constants.pixelRatio;
+
     for (int i = 0; i < layout.length; i++) {
       if (layout[i].type == 'player_slot') {
-        double slotLeft = i * slipStep;
-        playerBollards.add(slotLeft + (slipStep * 0.2));
-        playerBollards.add(slotLeft + (slipStep * 0.8));
+        double slotLeftLocal = edgePadding + (i * slipStep);
+
+        // Ставим тумбы чуть шире, так как само место стало огромным
+        // Раньше было 0.2 и 0.8, оставим так же — они распределятся по краям 20-метрового слота
+        playerBollards.add(slotLeftLocal + (slipStep * 0.2));
+        playerBollards.add(slotLeftLocal + (slipStep * 0.8));
         break;
       }
     }

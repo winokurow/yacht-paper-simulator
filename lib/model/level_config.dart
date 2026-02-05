@@ -1,9 +1,7 @@
 import 'package:flame/extensions.dart';
 
-// 1. Типы локаций
 enum EnvironmentType { marina, river, openSea }
 
-// 2. Описание того, что стоит у причала
 class BoatPlacement {
   final String type; // 'boat' или 'player_slot'
   final double width;
@@ -20,22 +18,14 @@ class BoatPlacement {
   });
 }
 
-// 3. Основной конфиг уровня
 class LevelConfig {
   final int id;
   final String name;
   final String description;
   final EnvironmentType envType;
-
-// Позиция игрока
-  final Vector2 startPos;
+  final Vector2 startPos; // В метрах
   final double startAngle;
-
-// Окружение
   final List<BoatPlacement> marinaLayout;
-  final int targetSlotIndex;
-
-// Физика (по умолчанию)
   final double defaultWindSpeed;
   final double defaultCurrentSpeed;
   final double currentDirection;
@@ -53,34 +43,43 @@ class LevelConfig {
     this.defaultCurrentSpeed = 0.0,
     this.currentDirection = 0.0,
   });
+
+  final int targetSlotIndex;
 }
 
-// 4. Твоя база уровней
 class GameLevels {
   static final List<LevelConfig> allLevels = [
+    // УРОВЕНЬ 1: ИСПОЛЬЗУЕМ ВАШ СПИСОК
     LevelConfig(
       id: 1,
       name: "Первый причал",
-      description: "Тихая марина. Место для парковки отмечено зеленым.",
+      description: "Тихая марина. Запаркуйте яхту в свободный слот между другими судами.",
       envType: EnvironmentType.marina,
-      startPos: Vector2(1000, 600),
+      startPos: Vector2(200, 45),
       marinaLayout: [
-        BoatPlacement(type: 'boat', width: 3, length: 8, sprite: 'yacht_small.png'),
-        BoatPlacement(type: 'player_slot'),
-        BoatPlacement(type: 'boat', width: 4, length: 12, sprite: 'yacht_medium.png'),
+        BoatPlacement(type: 'boat', width: 3.0, length: 8.0, sprite: 'yacht_small.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),
+        BoatPlacement(type: 'boat', width: 5.0, length: 10.0, sprite: 'yacht_motor.png', isNoseRight: true),
+        BoatPlacement(type: 'player_slot'), // Твой слот (индекс 3)
+        BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),
+        BoatPlacement(type: 'boat', width: 3.0, length: 9.0, sprite: 'yacht_small.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 10.0, length: 22.0, sprite: 'yacht_large.png', isNoseRight: true),
       ],
     ),
+
+    // УРОВЕНЬ 2: ПРИМЕР ДЛЯ РЕКИ
     LevelConfig(
       id: 2,
       name: "Течение Сены",
-      description: "В реке лодку постоянно сносит течением. Будьте осторожны!",
+      description: "Сложная швартовка на реке с сильным боковым течением.",
       envType: EnvironmentType.river,
-      startPos: Vector2(1000, 800),
-      defaultCurrentSpeed: 1.5,
-      currentDirection: 3.14, // Направление вниз
+      startPos: Vector2(150, 80),
+      defaultCurrentSpeed: 1.8,
+      currentDirection: 3.14, // Течение сносит вниз
       marinaLayout: [
-        BoatPlacement(type: 'boat', width: 4, length: 12, sprite: 'yacht_medium.png'),
+        BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),
         BoatPlacement(type: 'player_slot'),
+        BoatPlacement(type: 'boat', width: 10.0, length: 22.0, sprite: 'yacht_large.png', isNoseRight: true),
       ],
     ),
   ];

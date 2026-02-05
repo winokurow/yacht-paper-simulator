@@ -2,29 +2,34 @@ enum PropellerType { leftHanded, rightHanded }
 
 class Constants {
   // 1 метр = 10 пикселей. Это значит, что лодка длиной 12м = 120 пикселей.
-  static const double pixelRatio = 10.0;
+  static const double pixelRatio = 25.0;
 
   // --- ФИЗИКА (Приведенная к реальности) ---
   // Для 5-тонной яхты (5000 кг)
-  static const double yachtMass = 4000.0;
+  static const double yachtMass = 2500.0;
   // Тяга двигателя (для яхты 50л.с. это примерно 3000-5000 Ньютонов)
-  static const double maxThrust = 4000.0;
+  static const double maxThrust = 3500.0;
 
-  static const double dragCoefficient = 500.0;   // Сопротивление воды
+  static const double dragCoefficient = 150.0;   // Сопротивление воды
   static const double angularDrag = 5;
   static const double rudderEffect = 1.5;       // Эффективность руля
 
   // Скорость: 6 м/с — это примерно 11-12 узлов (очень быстро для яхты)
-  static const double maxSpeed = 6.0 * Constants.pixelRatio;
+  static const double maxSpeedMeters = 3.0;
 
   static const double minSpeedThreshold = 0.01;
   static const double rudderRotationSpeed = 3;
   static const double propWashFactor = 1.2;
 
-  static const double lateralDragMultiplier = 2000.0; // Сопротивление боковому дрейфу
+// Линейное сопротивление (вязкость) - работает на малых скоростях
+  static const double linearDragCoefficient = 300.0;
+  // Квадратичное сопротивление (форма корпуса) - работает на высоких скоростях
+  static const double quadraticDragCoefficient = 400.0;
+
+  static const double lateralDragMultiplier = 5.0; // Эффект киля
   static PropellerType propType = PropellerType.rightHanded;
-  static const double propWalkEffect = 3;
-  static const double yachtInertia = 3000.0;
+  static const double propWalkEffect = 4.5;
+  static const double yachtInertia = 6000.0;
 
   static const double mooringSpringStiffness = 150.0; // Жесткость каната
   static const double mooringDamping = 40.0;         // Гашение колебаний

@@ -83,6 +83,22 @@ class SteeringWheel extends SpriteComponent
     // Рисуем сам спрайт штурвала
     super.render(canvas);
 
+    // --- ДОБАВЛЯЕМ МЕТКУ ЦЕНТРА (Красная лента на штурвале) ---
+    final markPaint = Paint()
+      ..color = const Color(0xFFD32F2F) // Красный акцент
+      ..style = PaintingStyle.fill;
+
+    // Рисуем небольшой прямоугольник на верхнем ободе штурвала
+    // Он будет вращаться вместе со спрайтом
+    canvas.drawRect(
+      Rect.fromCenter(
+        center: Offset(size.x / 2, 5), // Позиция вверху штурвала
+        width: 10,
+        height: 5,
+      ),
+      markPaint,
+    );
+
     canvas.restore();
   }
 }

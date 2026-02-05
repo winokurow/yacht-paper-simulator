@@ -24,13 +24,12 @@ class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
     anchor = Anchor.topLeft;
     position = Vector2.zero();
 
-    // --- ВЕРХНЯЯ ЛЕВАЯ ПАНЕЛЬ (Приборы) ---
-    // Сдвигаем их к левому краю (x: 75 и x: 195)
+    // --- ПАНЕЛЬ ПРИБОРОВ (Верхняя левая) ---
     speedGauge = PaperGauge(
       label: "KNOTS",
       type: GaugeType.linear,
       minVal: 0,
-      maxVal: 10,
+      maxVal: 12, // Увеличили до 12 узлов для запаса
       position: Vector2(75, 75),
       size: Vector2(110, 110),
     );
@@ -46,29 +45,31 @@ class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
     );
     add(windGauge);
 
-    // --- НИЖНИЕ ПАНЕЛИ (Без изменений, одинаковая высота) ---
+    // --- НИЖНИЕ ПАНЕЛИ ---
     double bottomY = size.y - (bottomPanelHeight / 2) - 10;
 
+    // Газ
     throttle = ThrottleLever();
     throttle.position = Vector2(85, bottomY);
     add(throttle);
 
+    // Штурвал
     wheel = SteeringWheel(
       position: Vector2(size.x - 160, bottomY),
     );
     add(wheel);
 
-    // Создаем текстовый компонент
+    // Статус-сообщение (Судовой журнал)
     statusText = TextComponent(
       text: gameRef.statusMessage,
-      position: Vector2(size.x / 2, 120), // Центрируем внизу верхней панели
+      position: Vector2(size.x / 2, 120),
       anchor: Anchor.center,
       textRenderer: TextPaint(
         style: const TextStyle(
           fontSize: 14,
           color: Colors.black87,
           fontWeight: FontWeight.bold,
-          fontFamily: 'monospace', // Стиль печатной машинки
+          fontFamily: 'monospace',
         ),
       ),
     );
@@ -77,61 +78,40 @@ class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
 
   @override
   void render(Canvas canvas) {
-    // 1. ВЕРХНИЙ ЛЕВЫЙ ОСТРОВ (Информационный)
-    _drawIsland(canvas, Rect.fromLTWH(
-        10,
-        10,
-        260, // Компактная ширина под два прибора
-        topPanelHeight
-    ));
+    // 1. Верхний остров (Приборы)
+    _drawIsland(canvas, Rect.fromLTWH(10, 10, 260, topPanelHeight));
 
-    // 2. ЛЕВЫЙ НИЖНИЙ ОСТРОВ (Газ)
-    _drawIsland(canvas, Rect.fromLTWH(
-        10,
-        size.y - bottomPanelHeight - 10,
-        170,
-        bottomPanelHeight
-    ));
+    // 2. Левый нижний (Газ)
+    _drawIsland(canvas, Rect.fromLTWH(10, size.y - bottomPanelHeight - 10, 170, bottomPanelHeight));
 
-    // 3. ПРАВЫЙ НИЖНИЙ ОСТРОВ (Штурвал)
-    _drawIsland(canvas, Rect.fromLTWH(
-        size.x - 320,
-        size.y - bottomPanelHeight - 10,
-        310,
-        bottomPanelHeight
-    ));
+    // 3. Правый нижний (Штурвал + Аксиометр)
+    _drawIsland(canvas, Rect.fromLTWH(size.x - 320, size.y - bottomPanelHeight - 10, 310, bottomPanelHeight));
   }
 
   void _drawIsland(Canvas canvas, Rect rect) {
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(15));
-
-    // Тень
-    canvas.drawRRect(
-      rrect.shift(const Offset(4, 4)),
-      Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-    );
-
-    // Картон
+    canvas.drawRRect(rrect.shift(const Offset(4, 4)), Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
     canvas.drawRRect(rrect, Paint()..color = const Color(0xFFE0C9A6));
 
-    // Текстура бумаги
     final linePaint = Paint()..color = Colors.black.withOpacity(0.04)..strokeWidth = 1;
     for (double y = rect.top + 20; y < rect.bottom; y += 25) {
       canvas.drawLine(Offset(rect.left + 15, y), Offset(rect.right - 15, y), linePaint);
     }
 
-    // Контур
-    canvas.drawRRect(
-      rrect.deflate(4),
-      Paint()..color = Colors.black.withOpacity(0.1)..style = PaintingStyle.stroke..strokeWidth = 2,
-    );
+    canvas.drawRRect(rrect.deflate(4), Paint()..color = Colors.black.withOpacity(0.1)..style = PaintingStyle.stroke..strokeWidth = 2);
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    double speed = gameRef.yacht.velocity.length / Constants.pixelRatio;
-    speedGauge.updateValue(speed, dt);
+
+    // 1. ИСПРАВЛЕНИЕ СПИДОМЕТРА
+    // velocity.length — это м/с. Умножаем на 1.94, чтобы получить узлы (KNOTS).
+    // Больше не делим на pixelRatio!
+    double speedKnots = gameRef.yacht.velocity.length * 1.94;
+    speedGauge.updateValue(speedKnots, dt);
+
+    // 3. Ветер и Статус
     windGauge.currentValue = Constants.windDirection;
 
     if (statusText.text != gameRef.statusMessage) {
