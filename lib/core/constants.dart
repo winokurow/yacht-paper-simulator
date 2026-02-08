@@ -46,5 +46,7 @@ class Constants {
   static const double currentDirection = 1.57;
 
   static const double restitution = 0.3;    // Мягкий отскок
-  static const double damageThreshold = 1.5; // Порог повреждений в м/с
+// Скорость выше 0.8 м/с (около 1.5 узлов) при боковом ударе считается аварией
+  static const double maxSafeImpactSpeed = 0.8;
+
 }

@@ -188,57 +188,79 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
   @override
-  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
-    super.onCollision(intersectionPoints, other);
+  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollisionStart(intersectionPoints, other);
 
-    if (other is Dock || other is MooredYacht) {
-      if (intersectionPoints.isNotEmpty) {
-        Vector2 collisionMid = intersectionPoints.reduce((a, b) => a + b) / intersectionPoints.length.toDouble();
-        double impactSpeed = velocity.length / Constants.pixelRatio;
+    if (intersectionPoints.isEmpty) return;
 
-        if (impactSpeed > 0.8) _createSplash(collisionMid);
+    // Берем точку столкновения (мировую)
+    final worldCollisionPoint = intersectionPoints.first;
 
-        // Проверка критических повреждений
-        if (impactSpeed > 2.5) {
-          game.onGameOver("Hull breached! Too much impact speed.");
-          return;
-        }
+    // --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Перевод в локальные координаты яхты ---
+    final localCollisionPoint = parentToLocal(worldCollisionPoint);
 
-        double distToBow = collisionMid.distanceTo(bowWorldPosition);
-        if (distToBow < (size.y * 0.8) && impactSpeed > 0.6) {
-          game.onGameOver("Vessel lost! Direct bow collision.");
-          return;
-        }
+    // Нос у нас начинается примерно с 80% длины лодки.
+    // В локальных координатах (от -size.x/2 до size.x/2) это всё,
+    // что находится правее (впереди) отметки size.x * 0.3
+    bool isNoseHit = localCollisionPoint.x > (size.x * 0.3);
 
-        _handleSoftCollision(collisionMid, other);
-      }
+    // Проверка скорости (используем м/с)
+    bool isHighSpeed = velocity.length > Constants.maxSafeImpactSpeed;
+
+    if (isNoseHit) {
+      // Любое касание носом — это фатально
+      _triggerCrash("КРИТИЧЕСКАЯ ОШИБКА: Столкновение носом!");
+    } else if (isHighSpeed) {
+      // Удар любой другой частью (борт, корма) на высокой скорости
+      double speedKnots = velocity.length * 1.94;
+      _triggerCrash("АВАРИЯ: Слишком сильный удар бортом)");
+    } else {
+      // Мягкое касание бортом или кормой при швартовке
+      _handleSoftCollision(worldCollisionPoint, other);
+
+      // Визуальный эффект всплеска при касании
+      _createSplash(worldCollisionPoint);
     }
   }
 
-  void _handleSoftCollision(Vector2 collisionMid, PositionComponent other) {
-    // Останавливаем тягу двигателя при ударе
-    throttle = 0;
-    targetThrottle = 0;
+  void _triggerCrash(String message) {
+    velocity = Vector2.zero();
+    angularVelocity = 0;
+    game.statusMessage = message;
+    // Вызываем метод проигрыша в основной игре
+    game.onGameOver(message);
+  }
 
-    // Гасим скорость и даем небольшой отскок
+  void _handleSoftCollision(Vector2 collisionMid, PositionComponent other) {
+    // 1. ПАДЕНИЕ СКОРОСТИ (Физический эффект удара)
     if (velocity.length > 0.1) {
-      velocity = -velocity * 0.3; // Отскок 30%
-      angularVelocity *= 0.4;
+      // Даем небольшой "отскок" назад (30% от текущей скорости)
+      // Это создает визуальный эффект столкновения
+      velocity = -velocity * 0.3;
+
+      // Сильно гасим вращение при ударе, чтобы яхту не крутило как волчок
+      angularVelocity *= 0.2;
     } else {
+      // Если лодка еле ползла — просто останавливаем её
       velocity = Vector2.zero();
     }
 
-    // Выталкиваем лодку из объекта, чтобы хитбоксы не перекрывались
+    // --- ВНИМАНИЕ: throttle и targetThrottle больше не обнуляются! ---
+    // Двигатель продолжает работать на заданном уровне.
+
+    // 2. ВЫТАЛКИВАНИЕ (Collision Resolve)
+    // Чтобы лодка не "слипалась" с причалом и не проходила сквозь него,
+    // мы принудительно сдвигаем её на несколько пикселей в сторону от удара.
     Vector2 pushDir = (position - collisionMid).normalized();
 
-    // Если это причал, всегда выталкиваем "вниз" (в сторону моря)
     if (other is Dock) {
+      // Если ударились об причал, всегда выталкиваем в сторону воды (вниз)
       pushDir.y = 1.0;
       pushDir.x *= 0.5;
     }
 
-    // Увеличиваем силу выталкивания до 5-7 пикселей
-    position += pushDir * 6.0;
+    // Сдвиг на 5-7 пикселей за пределы хитбокса
+    position += pushDir * 7.0;
   }
 
   void _applyMooringPhysics(double dt, Vector2? bollardWorld, Vector2? anchorLocal, double? restLength, bool isBow) {

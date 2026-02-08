@@ -49,7 +49,8 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   Future<void> onLoad() async {
     // 1. Сначала стандартная настройка систем
     camera.viewport = FixedResolutionViewport(resolution: Vector2(1280, 720));
-    camera.viewfinder.anchor = Anchor.center;
+// Яхта чуть ниже центра. Это даст обзор и не даст ей "утонуть" в Dashboard
+    camera.viewfinder.anchor = const Anchor(0.5, 0.65);
     camera.viewport.add(DashboardBase());
 
     // 2. ЕСЛИ у нас есть запланированный уровень — запускаем его
@@ -90,10 +91,21 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     yacht.position = config.startPos * Constants.pixelRatio;
     world.add(yacht);
 
-    // Сбрасываем зум камеры на широкий угол при старте
-    camera.viewfinder.zoom = 0.3;
+// 2. МГНОВЕННЫЙ РАСЧЕТ КАМЕРЫ (без плавности)
+    final double dockY = 0; // Предполагаем, что причал на Y=0
+    final double distancePixels = (yacht.position.y - dockY).abs();
 
-    camera.follow(yacht);
+    // Рассчитываем зум так, чтобы яхта была на 80% высоты экрана
+    double targetVisibleHeight = distancePixels / 0.8;
+    double initialZoom = (720.0 / targetVisibleHeight).clamp(0.12, 0.5);
+
+    // Принудительно задаем параметры без lerp
+    camera.viewfinder.zoom = initialZoom;
+
+    double halfWorldHeight = (720.0 / 2) / initialZoom;
+    camera.viewfinder.position = Vector2(yacht.position.x, dockY + halfWorldHeight);
+    camera.viewfinder.anchor = Anchor.center;
+
     // ВАЖНО: Убеждаемся, что движок работает
     resumeEngine();
   }
@@ -189,13 +201,38 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   @override
   void update(double dt) {
     super.update(dt);
-    _applyDynamicZoom(dt);
+    _updateSmartCamera(dt);
 
-    // Плавное следование камеры (пиксельная привязка)
-    camera.viewfinder.position = Vector2(
-      yacht.position.x.roundToDouble(),
-      yacht.position.y.roundToDouble(),
-    );
+    if (dock != null) {
+      // 1. РАССЧИТЫВАЕМ ДИСТАНЦИЮ (в пикселях)
+      // Причал у нас на Y = 0 (playArea.top), яхта на Y = yacht.position.y
+      double distanceToDock = yacht.position.y.abs();
+
+      // 2. УСТАНАВЛИВАЕМ ЗУМ
+      // Мы хотим, чтобы всё расстояние от причала до яхты занимало 85% высоты экрана.
+      // Видимая высота мира = Дистанция / 0.85
+      double visibleHeight = distanceToDock / 0.85;
+
+      // Защита от слишком сильного приближения у причала (минимум 15 метров обзора)
+      if (visibleHeight < 15 * Constants.pixelRatio) {
+        visibleHeight = 15 * Constants.pixelRatio;
+      }
+
+      // Зум = Разрешение экрана (720) / Видимая высота мира
+      double targetZoom = (720.0 / visibleHeight).clamp(0.08, 0.6);
+
+      // Плавный переход зума
+      camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 2.0;
+
+      // 3. ПОЗИЦИОНИРОВАНИЕ
+      // Мы "приклеиваем" камеру к верхнему центру.
+      // С Anchor.topCenter позиция Y=0 означает, что верх экрана - это линия причала.
+      camera.viewfinder.anchor = Anchor.topCenter;
+      camera.viewfinder.position = Vector2(
+        yacht.position.x, // Следим за яхтой только по горизонтали
+        0,                // Вертикаль замерла на линии причала
+      );
+    }
 
     _handleInput(dt);
     _checkVictoryCondition();
@@ -203,27 +240,41 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   }
 
-  void _applyDynamicZoom(double dt) {
-    // Рассчитываем расстояние в МЕТРАХ для простоты логики
-    double distanceInMeters = yacht.position.y / Constants.pixelRatio;
+  void _updateSmartCamera(double dt) {
+    if (dock == null) return;
 
-    // ЦЕЛЕВОЙ ЗУМ:
-    // Если мы далеко (>40м) — зум 0.3 (виден весь причал)
-    // Если мы близко (<10м) — зум 0.85 (видны детали швартовки)
-    double targetZoom;
+    final double viewportHeight = 720.0;
+    final double dockY = dock!.position.y;
+    final double yachtY = yacht.position.y;
 
-    if (distanceInMeters > 40) {
-      targetZoom = 0.3;
-    } else if (distanceInMeters < 10) {
-      targetZoom = 0.85;
-    } else {
-      // Плавный переход между 10 и 40 метрами
-      double t = (distanceInMeters - 10) / 30; // от 0 до 1
-      targetZoom = lerpDouble(0.85, 0.3, t)!;
-    }
+    // Расстояние до причала
+    double distancePixels = (yachtY - dockY).abs();
 
-    // Плавное изменение (интерполяция)
-    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 1.2;
+    // 1. ИДЕАЛЬНЫЙ ЗУМ (чтобы яхта всегда была в нижней части)
+    // Чем дальше лодка, тем меньше зум.
+    // Мы хотим видеть всю дистанцию + 20% запаса снизу
+    double targetZoom = viewportHeight / (distancePixels / 0.8);
+    targetZoom = targetZoom.clamp(0.12, 0.5);
+
+    // Плавность оставляем только для зума, чтобы не было резких скачков масштаба
+    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 2.0;
+
+    // 2. ЖЕСТКАЯ ФИКСАЦИЯ ПРИЧАЛА СВЕРХУ
+    // Высота мира, которую мы видим сейчас при текущем зуме
+    double currentWorldHeight = viewportHeight / camera.viewfinder.zoom;
+
+    // Чтобы верхний край (DockY) был в 0 пикселей вьюпорта,
+    // центр камеры (Viewfinder Position) должен быть ровно посередине видимой высоты
+    double targetY = dockY + (currentWorldHeight / 2);
+
+    // Плавное следование по горизонтали за яхтой
+    double targetX = yacht.position.x;
+
+    // Устанавливаем позицию (Y — жестко, X — плавно)
+    camera.viewfinder.position = Vector2(
+        targetX,
+        targetY
+    );
   }
 
   void _handleInput(double dt) {

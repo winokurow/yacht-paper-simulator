@@ -57,23 +57,32 @@ class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
 
   @override
   void render(Canvas canvas) {
-    if (_dockImage == null) return;
-
-    // Округляем для стабильности пикселей
-    final rect = Rect.fromLTWH(
+    // ХИТРОСТЬ: Округляем Rect до целых значений.
+    // Это убирает "дрожание" краев при движении камеры и зуме.
+    final drawRect = Rect.fromLTWH(
         0, 0,
         size.x.roundToDouble(),
         size.y.roundToDouble()
     );
 
-    // 1. Тень
-    canvas.drawRect(
-        rect.shift(const Offset(3, 3)),
-        Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0)
-    );
+    final paint = Paint()
+      ..color = const Color(0xFFE0C9A6)
+      ..isAntiAlias = true; // Включаем сглаживание
 
-    // 2. Рисуем причал шейдером (без швов и мерцания)
-    canvas.drawRect(rect, _dockPaint);
+    canvas.drawRect(drawRect, paint);
+
+    // Отрисовка линий "бумаги"
+    final linePaint = Paint()
+      ..color = Colors.black.withOpacity(0.05)
+      ..strokeWidth = 1.5 / game.camera.viewfinder.zoom; // Адаптивная толщина линии
+
+    // Рисуем линии только если зум позволяет их увидеть (чтобы не было каши)
+    if (game.camera.viewfinder.zoom > 0.2) {
+      for (double y = 20; y < size.y; y += 25) {
+        canvas.drawLine(Offset(10, y), Offset(size.x - 10, y), linePaint);
+      }
+    }
+
 
     // 3. Детали
     _renderDetails(canvas);
