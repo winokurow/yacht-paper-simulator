@@ -27,6 +27,7 @@ class LevelConfig {
   final double startAngle;
   final List<BoatPlacement> marinaLayout;
   final double defaultWindSpeed;
+  final double defaultWindDirection; // радианы, откуда дует ветер
   final double defaultCurrentSpeed;
   final double currentDirection;
 
@@ -40,6 +41,7 @@ class LevelConfig {
     this.marinaLayout = const [],
     this.targetSlotIndex = 0,
     this.defaultWindSpeed = 2.0,
+    this.defaultWindDirection = 0.0,
     this.defaultCurrentSpeed = 0.0,
     this.currentDirection = 0.0,
   });
@@ -60,10 +62,13 @@ class GameLevels {
         BoatPlacement(type: 'boat', width: 3.0, length: 8.0, sprite: 'yacht_small.png', isNoseRight: true),
         BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),
         BoatPlacement(type: 'boat', width: 5.0, length: 10.0, sprite: 'yacht_motor.png', isNoseRight: true),
-        BoatPlacement(type: 'player_slot'), // Твой слот (индекс 3)
+        BoatPlacement(type: 'boat', width: 3.0, length: 8.0, sprite: 'yacht_small.png', isNoseRight: false),
+        BoatPlacement(type: 'player_slot'), // Твой слот (индекс 4)
         BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),
         BoatPlacement(type: 'boat', width: 3.0, length: 9.0, sprite: 'yacht_small.png', isNoseRight: true),
-        BoatPlacement(type: 'boat', width: 10.0, length: 22.0, sprite: 'yacht_large.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 5.0, length: 10.0, sprite: 'yacht_motor.png', isNoseRight: false),
+        BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 10.0, length: 20.0, sprite: 'yacht_large.png', isNoseRight: true),
       ],
     ),
 

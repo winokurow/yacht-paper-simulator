@@ -6,6 +6,7 @@ import 'package:flame/components.dart';
 import 'package:flame/particles.dart';
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
+import '../core/yacht_physics.dart';
 import 'package:flame/extensions.dart';
 import '../game/yacht_game.dart';
 import 'MooredYacht.dart';
@@ -25,21 +26,25 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   // Состояние швартовки
   bool canMoerBow = false;
   bool canMoerStern = false;
+
+  // Точки привязки (мировые координаты тумб) и длина каната в момент отдачи
+  Vector2? bowMooredTo;
+  Vector2? sternMooredTo;
   double? bowRopeRestLength;
   double? sternRopeRestLength;
 
-  Vector2? bowMooredTo;
-  Vector2? sternMooredTo;
-  Vector2? bowAnchorPointLocal;
-  Vector2? sternAnchorPointLocal;
+  // Точки крепления швартовых (для отрисовки и физики): 0.60 длины от носа, 0.98 от носа, смещение от борта
+  static const double _ropeOffsetFromBoard = 0.12;
+  Vector2 get _bowRopeLocal => Vector2(size.x / 2 - 0.20 * size.x, size.y * _ropeOffsetFromBoard);
+  Vector2 get _sternRopeLocal => Vector2(size.x / 2 - 0.98 * size.x, -size.y * _ropeOffsetFromBoard);
 
   // Геттеры позиций
-  Vector2 get bowWorldPosition => localToParent(Vector2(size.x / 2, 0));
-  Vector2 get sternWorldPosition => localToParent(Vector2(-size.x / 2, 0));
-  Vector2 get bowRightWorld => localToParent(Vector2(size.x * 0.4, size.y * 0.4));
-  Vector2 get bowLeftWorld  => localToParent(Vector2(size.x * 0.4, -size.y * 0.4));
-  Vector2 get sternRightWorld => localToParent(Vector2(-size.x * 0.4, size.y * 0.4));
-  Vector2 get sternLeftWorld  => localToParent(Vector2(-size.x * 0.4, -size.y * 0.4));
+  Vector2 get bowWorldPosition => localToParent(_bowRopeLocal);
+  Vector2 get sternWorldPosition => localToParent(_sternRopeLocal);
+  Vector2 get bowRightWorld => localToParent(Vector2(size.x / 2, size.y / 2));
+  Vector2 get bowLeftWorld  => localToParent(Vector2(size.x / 2, -size.y / 2));
+  Vector2 get sternRightWorld => localToParent(Vector2(-size.x / 2, size.y / 2));
+  Vector2 get sternLeftWorld  => localToParent(Vector2(-size.x / 2, -size.y / 2));
 
   YachtPlayer({double startAngleDegrees = 0.0}) : super(
     size: Vector2(12.0 * Constants.pixelRatio, 4.0 * Constants.pixelRatio),
@@ -70,7 +75,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   @override
   void update(double dt) {
     super.update(dt);
-
+    _checkMooringConditions();
     // Защита от больших скачков времени (например, при сворачивании окна)
     if (dt > 0.1) return;
 
@@ -102,29 +107,13 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     double speedMeters = velocity.length;
     Vector2 forwardDir = Vector2(math.cos(angle), math.sin(angle));
 
-    // А) Тяга двигателя
-    Vector2 thrustForce = forwardDir * (throttle * Constants.maxThrust);
+    Vector2 thrust = YachtPhysics.thrustForce(throttle, angle);
+    Vector2 wind = YachtPhysics.windForce(game.activeWindSpeed, game.activeWindDirection);
+    Vector2 drag = YachtPhysics.dragForce(velocity);
+    Vector2 lateral = YachtPhysics.lateralDrag(forwardDir, velocity);
 
-    // Б) Гибридное сопротивление воды (Drag)
-    // Линейное (вязкое) + Квадратичное (инерционное)
-    Vector2 dragForce = Vector2.zero();
-    if (speedMeters > 0.001) {
-      double dragMag = (speedMeters * Constants.linearDragCoefficient) +
-          (speedMeters * speedMeters * Constants.quadraticDragCoefficient);
-      dragForce = velocity.normalized() * (-dragMag);
-    }
-
-    // В) Боковое сопротивление (Эффект киля)
-    // Предотвращает дрейф яхты боком
-    Vector2 lateralDir = Vector2(-forwardDir.y, forwardDir.x);
-    double lateralSpeed = velocity.dot(lateralDir);
-    Vector2 lateralDrag = lateralDir * (-lateralSpeed * Constants.yachtMass * Constants.lateralDragMultiplier);
-
-    // Г) Суммируем силы и находим ускорение (a = F / m)
-    Vector2 totalForce = thrustForce + dragForce + lateralDrag;
+    Vector2 totalForce = thrust + wind + drag + lateral;
     Vector2 linearAcceleration = totalForce / Constants.yachtMass;
-
-    // Обновляем вектор скорости (в метрах в секунду)
     velocity += linearAcceleration * dt;
 
     // Жесткий ограничитель скорости (на всякий случай)
@@ -133,28 +122,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     }
 
     // --- 5. ФИЗИКА ВРАЩЕНИЯ ---
-
-    // Поток воды через руль (скорость хода + поток от винта)
-    double propWash = throttle.abs() * Constants.propWashFactor;
-    double totalFlow = speedMeters + propWash;
-
-    // Момент вращения от руля
-    double rudderTorque = _currentRudderAngle * totalFlow * Constants.rudderEffect * 800;
-    double totalTorque = rudderTorque;
-
-    // Эффект заброса кормы (Prop Walk)
-    if (throttle.abs() > 0.05) {
-      double sideSign = (Constants.propType == PropellerType.rightHanded) ? -1.0 : 1.0;
-      double walkIntensity = (throttle < 0) ? 1.0 : 0.15; // Назад эффект сильнее
-
-      // Затухание эффекта с ростом скорости
-      double fadeFactor = (1.0 - (speedMeters / 4.0)).clamp(0.0, 1.0);
-      double propWalkTorque = sideSign * throttle.sign * Constants.propWalkEffect * walkIntensity * (fadeFactor * fadeFactor) * 2000;
-
-      totalTorque += propWalkTorque;
-    }
-
-    // Применяем вращающий момент к угловой скорости
+    double totalTorque = YachtPhysics.rudderTorque(_currentRudderAngle, speedMeters, throttle) +
+        YachtPhysics.propWalkTorque(throttle, speedMeters);
     angularVelocity += (totalTorque / Constants.yachtInertia) * dt;
 
     // Сопротивление вращению (чтобы лодка не крутилась бесконечно)
@@ -162,29 +131,23 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     angularVelocity = angularVelocity.clamp(-1.2, 1.2);
 
     // --- 6. ИНТЕГРАЦИЯ ДВИЖЕНИЯ (Субстеппинг) ---
-    // Переводим метры в пиксели только на этом этапе
     double distThisFrame = velocity.length * dt * Constants.pixelRatio;
-    if (distThisFrame > 0.001) {
-      // Разбиваем путь на шаги по 2 пикселя для точности коллизий
-      int steps = (distThisFrame / 2.0).ceil().clamp(1, 10);
-      double stepDt = dt / steps;
-
-      for (int i = 0; i < steps; i++) {
-        position += velocity * (stepDt * Constants.pixelRatio);
-        angle += angularVelocity * stepDt;
-      }
+    var (steps, stepDt) = YachtPhysics.integrationSteps(distThisFrame, dt);
+    for (int i = 0; i < steps; i++) {
+      position += velocity * (stepDt * Constants.pixelRatio);
+      angle += angularVelocity * stepDt;
     }
 
-    // --- 7. ШВАРТОВКА (Физика канатов) ---
-    if (bowMooredTo != null) {
-      _applyMooringPhysics(dt, bowMooredTo, bowAnchorPointLocal, bowRopeRestLength, true);
-    }
-    if (sternMooredTo != null) {
-      _applyMooringPhysics(dt, sternMooredTo, sternAnchorPointLocal, sternRopeRestLength, false);
-    }
+    // 6. ФИЗИКА КАНАТОВ (натяжение только при растяжении каната, не притягиваем к причалу)
+    if (bowMooredTo != null && bowRopeRestLength != null) _applyMooringPhysics(dt, bowMooredTo, _bowRopeLocal, bowRopeRestLength);
+    if (sternMooredTo != null && sternRopeRestLength != null) _applyMooringPhysics(dt, sternMooredTo, _sternRopeLocal, sternRopeRestLength);
 
-    // Проверка условий завершения швартовки
-    _checkMooringConditions();
+    // --- СТАБИЛИЗАЦИЯ (Анти-дрожание) ---
+    // Если скорость меньше 0.05 пикселей в кадр, принудительно обнуляем её
+    if (throttle.abs() < 0.01 && velocity.length < 0.05) {
+      velocity = Vector2.zero();
+      if (angularVelocity.abs() < 0.005) angularVelocity = 0;
+    }
   }
 
   @override
@@ -207,7 +170,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     // Проверка скорости (используем м/с)
     bool isHighSpeed = velocity.length > Constants.maxSafeImpactSpeed;
 
-    if (isNoseHit) {
+    if (isNoseHit && isHighSpeed) {
       // Любое касание носом — это фатально
       _triggerCrash("КРИТИЧЕСКАЯ ОШИБКА: Столкновение носом!");
     } else if (isHighSpeed) {
@@ -258,63 +221,44 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
       pushDir.y = 1.0;
       pushDir.x *= 0.5;
     }
-
-    // Сдвиг на 5-7 пикселей за пределы хитбокса
-    position += pushDir * 7.0;
   }
 
-  void _applyMooringPhysics(double dt, Vector2? bollardWorld, Vector2? anchorLocal, double? restLength, bool isBow) {
+  void _applyMooringPhysics(double dt, Vector2? bollardWorld, Vector2? anchorLocal, double? restLength) {
     if (bollardWorld == null || anchorLocal == null || restLength == null) return;
 
     Vector2 anchorWorld = localToParent(anchorLocal);
     Vector2 ropeVector = bollardWorld - anchorWorld;
-    double currentDistance = ropeVector.length;
+    double currentLength = ropeVector.length;
+    if (currentLength <= restLength) return;
 
-    // Разрыв каната
-    if (currentDistance > restLength + (Constants.maxRopeExtension * Constants.pixelRatio)) {
-      if (isBow) {
-        bowMooredTo = null;
-        game.updateStatus("Bow rope snapped!");
-      } else {
-        sternMooredTo = null;
-        game.updateStatus("Stern rope snapped!");
-      }
-      return;
-    }
-
-    // Натяжение
-    if (currentDistance > restLength) {
-      double stretch = currentDistance - restLength;
-      Vector2 force = ropeVector.normalized() * (stretch * 400.0);
-      velocity += (force - velocity * 50.0) * dt / (Constants.yachtMass / 500);
-      angularVelocity *= math.pow(0.05, dt).toDouble();
-    }
+    double strain = currentLength - restLength;
+    Vector2 dir = ropeVector.normalized();
+    var (accel, damping) = YachtPhysics.mooringTension(
+      dir, strain, restLength, Constants.yachtMass, dt,
+    );
+    velocity += accel;
+    velocity *= damping;
   }
 
   void _checkMooringConditions() {
-    // Если на уровне нет причала (открытое море), выключаем логику швартовки
-    if (game.dock == null || game.playerBollards.isEmpty) {
-      canMoerBow = false;
-      canMoerStern = false;
-      return;
-    }
+    if (game.dock!.bollardXPositions.isEmpty) return;
 
-    final double bollardY = game.dock!.position.y + (game.dock!.size.y * 0.88);
-    List<Vector2> bollards = game.playerBollards
-        .map((x) => Vector2(game.dock!.position.x + x, bollardY))
-        .toList();
+    final double bollardY = game.dock!.position.y + game.dock!.size.y;
+    List<Vector2>? bollards = game.dock?.bollardXPositions.map((x) => Vector2(game.dock!.position.x + x, bollardY)).toList();
 
-    Vector2 mBow = localToParent(Vector2(size.x * 0.4, 0));
-    Vector2 mStern = localToParent(Vector2(-size.x * 0.4, 0));
+    Vector2 mBowR = localToParent(Vector2(size.x * 0.4, size.y * 0.35));
+    Vector2 mBowL = localToParent(Vector2(size.x * 0.4, -size.y * 0.35));
+    Vector2 mSternR = localToParent(Vector2(-size.x * 0.4, size.y * 0.35));
+    Vector2 mSternL = localToParent(Vector2(-size.x * 0.4, -size.y * 0.35));
 
-    double dBow = bollards.map((b) => mBow.distanceTo(b)).reduce(math.min);
-    double dStern = bollards.map((b) => mStern.distanceTo(b)).reduce(math.min);
+    double? dBow = bollards?.map((b) => math.min(mBowR.distanceTo(b), mBowL.distanceTo(b))).reduce(math.min);
+    double? dStern = bollards?.map((b) => math.min(mSternR.distanceTo(b), mSternL.distanceTo(b))).reduce(math.min);
 
-    double threshold = 6.5 * Constants.pixelRatio;
-    bool speedOk = velocity.length < (1.0 * Constants.pixelRatio);
+    double threshold = 3.5 * Constants.pixelRatio;
+    bool speedOk = velocity.length < 1.2 * Constants.pixelRatio;
 
-    canMoerBow = dBow < threshold && speedOk && bowMooredTo == null;
-    canMoerStern = dStern < threshold && speedOk && sternMooredTo == null;
+    canMoerBow = dBow! < threshold && speedOk && bowMooredTo == null;
+    canMoerStern = dStern! < threshold && speedOk && sternMooredTo == null;
 
     if (canMoerBow || canMoerStern) {
       game.showMooringButtons(canMoerBow, canMoerStern);
@@ -380,44 +324,37 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
 
     // 3. ВОЗВРАЩАЕМ РУЛЬ (Отрисовка пера руля)
     _renderRudder(canvas);
-
-    // Отрисовка канатов
-    if (bowMooredTo != null) _drawRope(canvas, bowMooredTo!, Vector2(size.x * 0.45, 0), bowRopeRestLength!);
-    if (sternMooredTo != null) _drawRope(canvas, sternMooredTo!, Vector2(-size.x * 0.45, 0), sternRopeRestLength!);
+    if (bowMooredTo != null) _drawRope(canvas, bowMooredTo!, _bowRopeLocal);
+    if (sternMooredTo != null) _drawRope(canvas, sternMooredTo!, _sternRopeLocal);
   }
 
   // Метод для отрисовки пера руля
   void _renderRudder(Canvas canvas) {
     canvas.save();
-    // Переносимся к корме яхты
+    // Переносимся к корме яхты (центр по ширине)
     canvas.translate(-size.x / 2, 0);
-    // Поворачиваем перо руля (используем текущий угол из физики)
+    // Поворачиваем перо руля (текущий угол из физики)
     canvas.rotate(-_currentRudderAngle);
-
-    // Рисуем оранжевую линию руля
+    // Рисуем перо руля (линия от кормы назад)
     canvas.drawLine(
       Offset.zero,
-      Offset(-size.x * 0.18, 0), // Руль стал чуть длиннее и заметнее
+      Offset(-size.x * 0.18, 0),
       Paint()
         ..color = Colors.orange
-        ..strokeWidth = 3.0 // Чуть толще для "бумажного" стиля
+        ..strokeWidth = 3.0
         ..strokeCap = StrokeCap.round,
     );
     canvas.restore();
   }
 
-  void _drawRope(Canvas canvas, Vector2 bollardWorld, Vector2 anchorLocal, double restLength) {
+  void _drawRope(Canvas canvas, Vector2? bollardWorld, Vector2? anchorLocal) {
+    if (bollardWorld == null || anchorLocal == null) return;
     Vector2 bLocal = parentToLocal(bollardWorld);
     double dist = (bLocal - anchorLocal).length;
-
-    final paint = Paint()
-      ..color = dist > restLength ? Colors.redAccent : const Color(0xFFEFEBE9)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    if (dist < restLength * 0.9) {
+    final paint = Paint()..color = const Color(0xFFEFEBE9)..strokeWidth = 1.5..style = PaintingStyle.stroke;
+    if (dist < 3.0 * Constants.pixelRatio * 0.9) {
       final path = Path()..moveTo(anchorLocal.x, anchorLocal.y);
-      path.quadraticBezierTo((anchorLocal.x + bLocal.x)/2, (anchorLocal.y + bLocal.y)/2 + (restLength - dist)*0.5, bLocal.x, bLocal.y);
+      path.quadraticBezierTo((anchorLocal.x + bLocal.x) / 2, (anchorLocal.y + bLocal.y) / 2 + (3.0 * Constants.pixelRatio - dist) * 0.4, bLocal.x, bLocal.y);
       canvas.drawPath(path, paint);
     } else {
       canvas.drawLine(anchorLocal.toOffset(), bLocal.toOffset(), paint);

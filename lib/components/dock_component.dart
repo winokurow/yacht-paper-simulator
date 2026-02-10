@@ -22,8 +22,8 @@ class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
     required Vector2 size,
   }) : super(position: position, size: size) {
     add(RectangleHitbox(
-      size: Vector2(size.x, size.y + 5),
-      position: Vector2(0, -2),
+      size: Vector2(size.x, size.y - 2),
+      position: Vector2.zero(),
       collisionType: CollisionType.passive,
     ));
   }

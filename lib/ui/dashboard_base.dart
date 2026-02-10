@@ -112,7 +112,7 @@ class DashboardBase extends PositionComponent with HasGameRef<YachtMasterGame> {
     speedGauge.updateValue(speedKnots, dt);
 
     // 3. Ветер и Статус
-    windGauge.currentValue = Constants.windDirection;
+    windGauge.currentValue = gameRef.activeWindDirection;
 
     if (statusText.text != gameRef.statusMessage) {
       statusText.text = gameRef.statusMessage;

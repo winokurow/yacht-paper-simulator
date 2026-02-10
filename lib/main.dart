@@ -35,19 +35,35 @@ class GameView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GameWidget<YachtMasterGame>(
-        game: game,
-        // РЕГИСТРАЦИЯ ОВЕРЛЕЕВ
-        overlayBuilderMap: {
-          // 1. Кнопки швартовки
-          'MooringMenu': (context, game) => _MooringOverlay(game: game),
-
-          // 2. Окно проигрыша
-          'GameOver': (context, game) => _GameOverOverlay(game: game),
-
-          // 3. Окно победы
-          'Victory': (context, game) => _VictoryOverlay(game: game),
-        },
+      body: Stack(
+        children: [
+          GameWidget<YachtMasterGame>(
+            game: game,
+            overlayBuilderMap: {
+              'MooringMenu': (context, game) => _MooringOverlay(game: game),
+              'GameOver': (context, game) => _GameOverOverlay(game: game),
+              'Victory': (context, game) => _VictoryOverlay(game: game),
+            },
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFFE0C9A6),
+                    foregroundColor: const Color(0xFF5D4037),
+                    padding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

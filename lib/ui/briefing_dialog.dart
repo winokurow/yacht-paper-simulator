@@ -154,7 +154,14 @@ class _BriefingDialogState extends State<BriefingDialog> {
     final game = YachtMasterGame();
 
     // 2. Только ПЕРЕДАЕМ настройки, не вызывая тяжелую логику мира
-    game.prepareStart(widget.level, windMult, isRightHanded);
+    game.prepareStart(
+      widget.level,
+      windMult: windMult,
+      windDirectionRad: widget.level.defaultWindDirection,
+      currentSpeed: widget.level.defaultCurrentSpeed,
+      currentDirectionRad: widget.level.currentDirection,
+      propellerRightHanded: isRightHanded,
+    );
 
     // 3. Закрываем диалог
     Navigator.pop(context);

@@ -12,6 +12,8 @@ import '../components/MooredYacht.dart';
 import '../components/dock_component.dart';
 import '../components/sea_component.dart';
 import '../core/constants.dart';
+import '../core/marina_layout.dart';
+import '../core/camera_math.dart';
 import '../model/level_config.dart';
 import '../ui/dashboard_base.dart';
 
@@ -25,6 +27,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   LevelConfig? _pendingLevel;
   String statusMessage = "Waiting for command...";
   double activeWindSpeed = 0;
+  double activeWindDirection = 0;
   double activeCurrentSpeed = 0;
   double activeCurrentDirection = 0;
 
@@ -37,9 +40,15 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   // В начало класса YachtMasterGame
   double _lastWindMult = 1.0;
+  double _lastWindDirection = 0.0;
+  double _lastCurrentSpeed = 0.0;
+  double _lastCurrentDirection = 0.0;
   bool _lastIsRightHanded = true;
 
   double _pendingWind = 1.0;
+  double _pendingWindDirection = 0.0;
+  double _pendingCurrentSpeed = 0.0;
+  double _pendingCurrentDirection = 0.0;
   bool _pendingRightHanded = true;
 
   @override
@@ -55,22 +64,48 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
     // 2. ЕСЛИ у нас есть запланированный уровень — запускаем его
     if (_pendingLevel != null) {
-      startLevel(_pendingLevel!, _pendingWind, _pendingRightHanded);
+      startLevel(
+        _pendingLevel!,
+        windMult: _pendingWind,
+        windDirectionRad: _pendingWindDirection,
+        currentSpeed: _pendingCurrentSpeed,
+        currentDirectionRad: _pendingCurrentDirection,
+        isRightHanded: _pendingRightHanded,
+      );
     }
   }
 
-  // Новый метод для подготовки запуска из диалога
-  void prepareStart(LevelConfig config, double wind, bool rightHanded) {
+  /// Подготовка запуска с экрана настроек уровня.
+  void prepareStart(
+    LevelConfig config, {
+    required double windMult,
+    double windDirectionRad = 0.0,
+    double currentSpeed = 0.0,
+    double currentDirectionRad = 0.0,
+    bool propellerRightHanded = true,
+  }) {
     _pendingLevel = config;
-    _pendingWind = wind;
-    _pendingRightHanded = rightHanded;
+    _pendingWind = windMult;
+    _pendingWindDirection = windDirectionRad;
+    _pendingCurrentSpeed = currentSpeed;
+    _pendingCurrentDirection = currentDirectionRad;
+    _pendingRightHanded = propellerRightHanded;
   }
 
   // --- ЛОГИКА ЗАПУСКА УРОВНЯ ---
-  void startLevel(LevelConfig config, double windMult, bool isRightHanded) {
-    // Сохраняем для сброса
+  void startLevel(
+    LevelConfig config, {
+    required double windMult,
+    double windDirectionRad = 0.0,
+    double currentSpeed = 0.0,
+    double currentDirectionRad = 0.0,
+    required bool isRightHanded,
+  }) {
     currentLevel = config;
     _lastWindMult = windMult;
+    _lastWindDirection = windDirectionRad;
+    _lastCurrentSpeed = currentSpeed;
+    _lastCurrentDirection = currentDirectionRad;
     _lastIsRightHanded = isRightHanded;
 
     _victoryTriggered = false;
@@ -78,12 +113,12 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
     world.removeAll(world.children);
 
-    // Инициализируем яхту
     yacht = YachtPlayer(startAngleDegrees: config.startAngle);
 
     activeWindSpeed = config.defaultWindSpeed * windMult;
-    activeCurrentSpeed = config.defaultCurrentSpeed;
-    activeCurrentDirection = config.currentDirection;
+    activeWindDirection = windDirectionRad;
+    activeCurrentSpeed = currentSpeed;
+    activeCurrentDirection = currentDirectionRad;
     Constants.propType = isRightHanded ? PropellerType.rightHanded : PropellerType.leftHanded;
 
     _buildEnvironment(config);
@@ -91,19 +126,13 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     yacht.position = config.startPos * Constants.pixelRatio;
     world.add(yacht);
 
-// 2. МГНОВЕННЫЙ РАСЧЕТ КАМЕРЫ (без плавности)
-    final double dockY = 0; // Предполагаем, что причал на Y=0
-    final double distancePixels = (yacht.position.y - dockY).abs();
-
-    // Рассчитываем зум так, чтобы яхта была на 80% высоты экрана
-    double targetVisibleHeight = distancePixels / 0.8;
-    double initialZoom = (720.0 / targetVisibleHeight).clamp(0.12, 0.5);
-
-    // Принудительно задаем параметры без lerp
+// 2. Начальная камера (без плавности)
+    const double dockY = 0;
+    double distancePixels = (yacht.position.y - dockY).abs();
+    double initialZoom = CameraMath.targetZoomSmart(distancePixels);
     camera.viewfinder.zoom = initialZoom;
-
-    double halfWorldHeight = (720.0 / 2) / initialZoom;
-    camera.viewfinder.position = Vector2(yacht.position.x, dockY + halfWorldHeight);
+    double worldHeight = CameraMath.worldHeightAtZoom(initialZoom);
+    camera.viewfinder.position = Vector2(yacht.position.x, CameraMath.targetCameraY(dockY, worldHeight));
     camera.viewfinder.anchor = Anchor.center;
 
     // ВАЖНО: Убеждаемся, что движок работает
@@ -140,19 +169,16 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void _setupMarinaLayout(LevelConfig config) {
-    // --- НАСТРОЙКИ РАССТОЯНИЙ ---
-    const double slipWidthInMeters = 20.0; // БЫЛО 12.0, СТАЛО 20.0 (расстояние между центрами лодок)
-    const double edgePaddingInMeters = 25.0; // Свободное место по краям причала
+    final params = MarinaLayoutParams(slotCount: config.marinaLayout.length);
+    final double dockWidth = params.dockWidthPixels;
+    final double dockX = MarinaLayout.dockX(dockWidth, playArea.width);
 
-    final double slipStep = slipWidthInMeters * Constants.pixelRatio;
-    final double edgePadding = edgePaddingInMeters * Constants.pixelRatio;
-
-    // Общая ширина причала
-    final double dockWidth = (slipStep * config.marinaLayout.length) + (edgePadding * 2);
-    final double dockX = (playArea.width / 2) - (dockWidth / 2);
-
-    // Обновляем позиции тумб (передаем новый slipWidthInMeters)
-    _calculateBollardPositions(dockX, dockWidth, config.marinaLayout, edgePadding, slipWidthInMeters);
+    playerBollards.clear();
+    playerBollards.addAll(MarinaLayout.playerBollardXPositions(
+      config.marinaLayout,
+      params.slipStepPixels,
+      params.edgePaddingPixels,
+    ));
 
     dock = Dock(
       bollardXPositions: playerBollards,
@@ -166,12 +192,12 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
     for (int i = 0; i < config.marinaLayout.length; i++) {
       final p = config.marinaLayout[i];
-
-      // Позиция лодки с учетом широких слипов
-      final double posX = dock!.position.x + edgePadding + (i * slipStep) + (slipStep / 2);
+      final double posX = MarinaLayout.slotCenterX(
+        dockX, params.edgePaddingPixels, params.slipStepPixels, i,
+      );
 
       if (p.type == 'player_slot') {
-        _addParkingMarker(Vector2(posX, dockBottomY), slipStep);
+        _addParkingMarker(Vector2(posX, dockBottomY), params.slipStepPixels);
       } else {
         double boatWidthPx = p.width * Constants.pixelRatio;
         world.add(MooredYacht(
@@ -204,34 +230,11 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     _updateSmartCamera(dt);
 
     if (dock != null) {
-      // 1. РАССЧИТЫВАЕМ ДИСТАНЦИЮ (в пикселях)
-      // Причал у нас на Y = 0 (playArea.top), яхта на Y = yacht.position.y
       double distanceToDock = yacht.position.y.abs();
-
-      // 2. УСТАНАВЛИВАЕМ ЗУМ
-      // Мы хотим, чтобы всё расстояние от причала до яхты занимало 85% высоты экрана.
-      // Видимая высота мира = Дистанция / 0.85
-      double visibleHeight = distanceToDock / 0.85;
-
-      // Защита от слишком сильного приближения у причала (минимум 15 метров обзора)
-      if (visibleHeight < 15 * Constants.pixelRatio) {
-        visibleHeight = 15 * Constants.pixelRatio;
-      }
-
-      // Зум = Разрешение экрана (720) / Видимая высота мира
-      double targetZoom = (720.0 / visibleHeight).clamp(0.08, 0.6);
-
-      // Плавный переход зума
+      double targetZoom = CameraMath.targetZoomFromDistanceToDock(distanceToDock);
       camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 2.0;
-
-      // 3. ПОЗИЦИОНИРОВАНИЕ
-      // Мы "приклеиваем" камеру к верхнему центру.
-      // С Anchor.topCenter позиция Y=0 означает, что верх экрана - это линия причала.
       camera.viewfinder.anchor = Anchor.topCenter;
-      camera.viewfinder.position = Vector2(
-        yacht.position.x, // Следим за яхтой только по горизонтали
-        0,                // Вертикаль замерла на линии причала
-      );
+      camera.viewfinder.position = Vector2(yacht.position.x, 0);
     }
 
     _handleInput(dt);
@@ -243,38 +246,13 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   void _updateSmartCamera(double dt) {
     if (dock == null) return;
 
-    final double viewportHeight = 720.0;
-    final double dockY = dock!.position.y;
-    final double yachtY = yacht.position.y;
-
-    // Расстояние до причала
-    double distancePixels = (yachtY - dockY).abs();
-
-    // 1. ИДЕАЛЬНЫЙ ЗУМ (чтобы яхта всегда была в нижней части)
-    // Чем дальше лодка, тем меньше зум.
-    // Мы хотим видеть всю дистанцию + 20% запаса снизу
-    double targetZoom = viewportHeight / (distancePixels / 0.8);
-    targetZoom = targetZoom.clamp(0.12, 0.5);
-
-    // Плавность оставляем только для зума, чтобы не было резких скачков масштаба
+    double distancePixels = (yacht.position.y - dock!.position.y).abs();
+    double targetZoom = CameraMath.targetZoomSmart(distancePixels);
     camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 2.0;
 
-    // 2. ЖЕСТКАЯ ФИКСАЦИЯ ПРИЧАЛА СВЕРХУ
-    // Высота мира, которую мы видим сейчас при текущем зуме
-    double currentWorldHeight = viewportHeight / camera.viewfinder.zoom;
-
-    // Чтобы верхний край (DockY) был в 0 пикселей вьюпорта,
-    // центр камеры (Viewfinder Position) должен быть ровно посередине видимой высоты
-    double targetY = dockY + (currentWorldHeight / 2);
-
-    // Плавное следование по горизонтали за яхтой
-    double targetX = yacht.position.x;
-
-    // Устанавливаем позицию (Y — жестко, X — плавно)
-    camera.viewfinder.position = Vector2(
-        targetX,
-        targetY
-    );
+    double currentWorldHeight = CameraMath.worldHeightAtZoom(camera.viewfinder.zoom);
+    double targetY = CameraMath.targetCameraY(dock!.position.y, currentWorldHeight);
+    camera.viewfinder.position = Vector2(yacht.position.x, targetY);
   }
 
   void _handleInput(double dt) {
@@ -322,24 +300,6 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   void updateStatus(String msg) {
     statusMessage = msg;
-  }
-
-  // --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ---
-  void _calculateBollardPositions(double dockX, double dockWidth, List<BoatPlacement> layout, double edgePadding, double currentSlipWidth) {
-    playerBollards.clear();
-    final double slipStep = currentSlipWidth * Constants.pixelRatio;
-
-    for (int i = 0; i < layout.length; i++) {
-      if (layout[i].type == 'player_slot') {
-        double slotLeftLocal = edgePadding + (i * slipStep);
-
-        // Ставим тумбы чуть шире, так как само место стало огромным
-        // Раньше было 0.2 и 0.8, оставим так же — они распределятся по краям 20-метрового слота
-        playerBollards.add(slotLeftLocal + (slipStep * 0.2));
-        playerBollards.add(slotLeftLocal + (slipStep * 0.8));
-        break;
-      }
-    }
   }
 
   void _addParkingMarker(Vector2 pos, double slipWidth) {
@@ -396,7 +356,14 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     overlays.removeAll(['GameOver', 'Victory', 'MooringMenu']);
 
     // 2. Перезапускаем уровень с сохраненными настройками
-    startLevel(currentLevel!, _lastWindMult, _lastIsRightHanded);
+    startLevel(
+      currentLevel!,
+      windMult: _lastWindMult,
+      windDirectionRad: _lastWindDirection,
+      currentSpeed: _lastCurrentSpeed,
+      currentDirectionRad: _lastCurrentDirection,
+      isRightHanded: _lastIsRightHanded,
+    );
 
     // 3. Сбрасываем сообщение в интерфейсе
     updateStatus("Level Restarted");

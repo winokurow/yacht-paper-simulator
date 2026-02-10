@@ -8,7 +8,7 @@ class Constants {
   // Для 5-тонной яхты (5000 кг)
   static const double yachtMass = 2500.0;
   // Тяга двигателя (для яхты 50л.с. это примерно 3000-5000 Ньютонов)
-  static const double maxThrust = 3500.0;
+  static const double maxThrust = 5000.0;
 
   static const double dragCoefficient = 150.0;   // Сопротивление воды
   static const double angularDrag = 5;
@@ -47,6 +47,6 @@ class Constants {
 
   static const double restitution = 0.3;    // Мягкий отскок
 // Скорость выше 0.8 м/с (около 1.5 узлов) при боковом ударе считается аварией
-  static const double maxSafeImpactSpeed = 0.8;
+  static const double maxSafeImpactSpeed = 1.5;
 
 }

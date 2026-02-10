@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../model/level_config.dart';
-import 'briefing_dialog.dart';
+import 'level_settings_screen.dart';
 
 class LevelSelectionScreen extends StatelessWidget {
   const LevelSelectionScreen({super.key});
@@ -51,7 +51,7 @@ class LevelSelectionScreen extends StatelessWidget {
         title: Text(level.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(level.description),
         trailing: const Icon(Icons.arrow_forward_ios),
-        onTap: () => _showBriefing(context, level),
+        onTap: () => _openSettings(context, level),
       ),
     );
   }
@@ -64,10 +64,11 @@ class LevelSelectionScreen extends StatelessWidget {
     }
   }
 
-  void _showBriefing(BuildContext context, LevelConfig level) {
-    showDialog(
-      context: context,
-      builder: (context) => BriefingDialog(level: level),
+  void _openSettings(BuildContext context, LevelConfig level) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => LevelSettingsScreen(level: level),
+      ),
     );
   }
 }
