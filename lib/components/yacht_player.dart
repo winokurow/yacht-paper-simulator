@@ -33,6 +33,9 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   double? bowRopeRestLength;
   double? sternRopeRestLength;
 
+  /// Коэффициент восстановления при отражении скорости (0 = полностью неупругий, 1 = упругий).
+  static const double _restitution = 0.35;
+
   // Точки крепления швартовых (для отрисовки и физики): 0.60 длины от носа, 0.98 от носа, смещение от борта
   static const double _ropeOffsetFromBoard = 0.12;
   Vector2 get _bowRopeLocal => Vector2(size.x / 2 - 0.20 * size.x, size.y * _ropeOffsetFromBoard);
@@ -97,10 +100,13 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
       throttle = throttle.clamp(-1.0, 1.0);
     }
 
-    // --- 3. ПЕРЕКЛАДКА РУЛЯ (Плавный поворот пера) ---
+    // --- 3. ПЕРЕКЛАДКА РУЛЯ (Плавный поворот пера, без перелёта — иначе линия мельтешит) ---
     double rudderDiff = targetRudderAngle - _currentRudderAngle;
-    if (rudderDiff.abs() > 0.01) {
-      _currentRudderAngle += rudderDiff.sign * Constants.rudderRotationSpeed * dt;
+    double step = Constants.rudderRotationSpeed * dt;
+    if (rudderDiff.abs() <= step) {
+      _currentRudderAngle = targetRudderAngle; // снимка к цели, без осцилляции
+    } else if (rudderDiff.abs() > 0.001) {
+      _currentRudderAngle += rudderDiff.sign * step;
     }
 
     // --- 4. ФИЗИКА ЛИНЕЙНОГО ДВИЖЕНИЯ ---
@@ -122,8 +128,11 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     }
 
     // --- 5. ФИЗИКА ВРАЩЕНИЯ ---
-    double totalTorque = YachtPhysics.rudderTorque(_currentRudderAngle, speedMeters, throttle) +
-        YachtPhysics.propWalkTorque(throttle, speedMeters);
+    double propWalk = YachtPhysics.propWalkTorque(throttle, speedMeters);
+    if (throttle < 0 && _distanceToDockPixels() < Constants.propWalkSuppressDistanceToDockPixels) {
+      propWalk = 0; // у причала при заднем ходе не крутим от смещения винта — иначе заезжаем на причал
+    }
+    double totalTorque = YachtPhysics.rudderTorque(_currentRudderAngle, speedMeters, throttle) + propWalk;
     angularVelocity += (totalTorque / Constants.yachtInertia) * dt;
 
     // Сопротивление вращению (чтобы лодка не крутилась бесконечно)
@@ -148,6 +157,19 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
       velocity = Vector2.zero();
       if (angularVelocity.abs() < 0.005) angularVelocity = 0;
     }
+  }
+
+  @override
+  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollision(intersectionPoints, other);
+    if (intersectionPoints.isEmpty) return;
+    final worldCollisionPoint = intersectionPoints.first;
+    final localCollisionPoint = parentToLocal(worldCollisionPoint);
+    bool isNoseHit = localCollisionPoint.x > (size.x * 0.3);
+    bool isHighSpeed = velocity.length > Constants.maxSafeImpactSpeed;
+    if (isNoseHit && isHighSpeed) return;
+    if (isHighSpeed) return;
+    _handleSoftCollision(worldCollisionPoint, other, applyVelocityChange: false);
   }
 
   @override
@@ -194,32 +216,61 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     game.onGameOver(message);
   }
 
-  void _handleSoftCollision(Vector2 collisionMid, PositionComponent other) {
-    // 1. ПАДЕНИЕ СКОРОСТИ (Физический эффект удара)
-    if (velocity.length > 0.1) {
-      // Даем небольшой "отскок" назад (30% от текущей скорости)
-      // Это создает визуальный эффект столкновения
-      velocity = -velocity * 0.3;
+  /// Минимальная длина нормали, ниже которой считаем объекты совпавшими по центру.
+  static const double _zeroNormalThreshold = 1e-6;
 
-      // Сильно гасим вращение при ударе, чтобы яхту не крутило как волчок
-      angularVelocity *= 0.2;
-    } else {
-      // Если лодка еле ползла — просто останавливаем её
-      velocity = Vector2.zero();
+  /// Возвращает мировые координаты центра компонента с учётом anchor.
+  static Vector2 _worldCenter(PositionComponent c) {
+    final anchorOffset = Vector2(
+      c.size.x * (0.5 - c.anchor.x),
+      c.size.y * (0.5 - c.anchor.y),
+    );
+    return c.position + anchorOffset;
+  }
+
+  /// Приближённый «радиус» для расчёта глубины проникновения (половина меньшей стороны).
+  static double _approximateRadius(PositionComponent c) {
+    return math.min(c.size.x, c.size.y) * 0.5;
+  }
+
+  void _handleSoftCollision(Vector2 collisionMid, PositionComponent other, {bool applyVelocityChange = true}) {
+    final playerCenter = _worldCenter(this);
+    final obstacleCenter = _worldCenter(other);
+
+    // Нормаль: от центра препятствия к центру игрока (игрока выталкиваем наружу).
+    Vector2 normal = playerCenter - obstacleCenter;
+    final dist = normal.length;
+    if (dist < _zeroNormalThreshold) {
+      // Центры совпали — используем направление от точки контакта к игроку
+      normal = position - collisionMid;
+      if (normal.length < _zeroNormalThreshold) {
+        velocity = Vector2.zero();
+        angularVelocity = 0.0;
+        return;
+      }
     }
+    normal = normal.normalized();
 
-    // --- ВНИМАНИЕ: throttle и targetThrottle больше не обнуляются! ---
-    // Двигатель продолжает работать на заданном уровне.
+    // Глубина проникновения: сумма «радиусов» минус расстояние между центрами.
+    final rPlayer = _approximateRadius(this);
+    final rObstacle = _approximateRadius(other);
+    double depth = (rPlayer + rObstacle) - dist;
+    if (depth < 0) depth = 0;
 
-    // 2. ВЫТАЛКИВАНИЕ (Collision Resolve)
-    // Чтобы лодка не "слипалась" с причалом и не проходила сквозь него,
-    // мы принудительно сдвигаем её на несколько пикселей в сторону от удара.
-    Vector2 pushDir = (position - collisionMid).normalized();
+    // Выталкивание вдоль нормали.
+    position += normal * depth;
 
-    if (other is Dock) {
-      // Если ударились об причал, всегда выталкиваем в сторону воды (вниз)
-      pushDir.y = 1.0;
-      pushDir.x *= 0.5;
+    // Отражение скорости (упругое): v_new = v_old - 2(v_old·n)n, затем коэффициент восстановления.
+    if (applyVelocityChange && velocity.length > _zeroNormalThreshold) {
+      final vn = velocity.dot(normal);
+      if (vn < 0) {
+        velocity = velocity - normal * (2 * vn);
+        velocity *= _restitution;
+      }
+      angularVelocity *= 0.3;
+    } else if (applyVelocityChange) {
+      velocity = Vector2.zero();
+      angularVelocity = 0.0;
     }
   }
 
@@ -238,6 +289,19 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     );
     velocity += accel;
     velocity *= damping;
+  }
+
+  /// Минимальная дистанция от центра яхты до прямоугольника причала (в пикселях).
+  double _distanceToDockPixels() {
+    if (game.dock == null) return double.infinity;
+    final d = game.dock!;
+    final left = d.position.x;
+    final top = d.position.y;
+    final right = d.position.x + d.size.x;
+    final bottom = d.position.y + d.size.y;
+    final cx = position.x.clamp(left, right);
+    final cy = position.y.clamp(top, bottom);
+    return position.distanceTo(Vector2(cx, cy));
   }
 
   void _checkMooringConditions() {

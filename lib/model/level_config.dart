@@ -57,7 +57,8 @@ class GameLevels {
       name: "Первый причал",
       description: "Тихая марина. Запаркуйте яхту в свободный слот между другими судами.",
       envType: EnvironmentType.marina,
-      startPos: Vector2(200, 60),
+      startPos: Vector2(150, 60),
+      startAngle: 0, // нос яхты направлен вправо
       marinaLayout: [
         BoatPlacement(type: 'boat', width: 3.0, length: 8.0, sprite: 'yacht_small.png', isNoseRight: true),
         BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),

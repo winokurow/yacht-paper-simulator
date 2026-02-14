@@ -14,6 +14,7 @@ import '../components/sea_component.dart';
 import '../core/constants.dart';
 import '../core/marina_layout.dart';
 import '../core/camera_math.dart';
+import '../core/test_logger.dart';
 import '../model/level_config.dart';
 import '../ui/dashboard_base.dart';
 
@@ -21,6 +22,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   late YachtPlayer yacht;
   Dock? dock;
   late Sea sea;
+  double totalGameTime = 0;
 
   // Состояние уровня
   LevelConfig? currentLevel;
@@ -50,6 +52,20 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   double _pendingCurrentSpeed = 0.0;
   double _pendingCurrentDirection = 0.0;
   bool _pendingRightHanded = true;
+
+  @override
+  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
+    // totalGameTime — это переменная, которую мы добавили для отслеживания игрового времени
+
+    if (event is KeyDownEvent) {
+      // В новом API KeyDownEvent всегда означает ПЕРВОЕ нажатие (не повтор)
+      TestLogger.logEvent('DOWN', event.logicalKey, totalGameTime, yacht);
+    } else if (event is KeyUpEvent) {
+      TestLogger.logEvent('UP', event.logicalKey, totalGameTime, yacht);
+    }
+
+    return super.onKeyEvent(event, keysPressed);
+  }
 
   @override
   Color backgroundColor() => const Color(0xFF3E2723);
@@ -227,6 +243,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   @override
   void update(double dt) {
     super.update(dt);
+    totalGameTime += dt;
     _updateSmartCamera(dt);
 
     if (dock != null) {
@@ -247,8 +264,10 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     if (dock == null) return;
 
     double distancePixels = (yacht.position.y - dock!.position.y).abs();
+    if (distancePixels < 1) distancePixels = 1;
     double targetZoom = CameraMath.targetZoomSmart(distancePixels);
     camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 2.0;
+    camera.viewfinder.zoom = camera.viewfinder.zoom.clamp(CameraMath.zoomMin, CameraMath.zoomMax);
 
     double currentWorldHeight = CameraMath.worldHeightAtZoom(camera.viewfinder.zoom);
     double targetY = CameraMath.targetCameraY(dock!.position.y, currentWorldHeight);
@@ -282,6 +301,8 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       _victoryTriggered = true;
       pauseEngine();
       statusMessage = "MISSION ACCOMPLISHED";
+      print('DEBUG: Victory triggered!'); // Добавьте для проверки
+      TestLogger.printFinalBlock();
       overlays.add('Victory');
     }
   }

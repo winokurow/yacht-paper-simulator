@@ -1,0 +1,4 @@
+# Теги для golden-тестов (golden_toolkit использует тег "golden")
+tags:
+  golden:
+    description: Визуальные регрессионные тесты (golden)

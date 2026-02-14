@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../model/level_config.dart';
 
 import '../game/yacht_game.dart';
-import '../main.dart'; // Для доступа к GameView
+import '../game/game_view.dart';
 
 class BriefingDialog extends StatefulWidget {
   final LevelConfig level;
