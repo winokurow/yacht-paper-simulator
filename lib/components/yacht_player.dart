@@ -56,31 +56,21 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     angle = startAngleDegrees * (math.pi / 180);
   }
 
-  /// Расширение хитбокса «кранцы» (пиксели), чтобы столкновение срабатывало до касания спрайта причала.
-  static const double _fenderPx = 2.5;
+  /// Последний dt для Position Correction в onCollision (откат на шаг назад).
+  double _lastDt = 1 / 60.0;
 
   @override
   Future<void> onLoad() async {
     yachtSprite = await game.loadSprite('yacht_paper.png');
 
-    // Обводы яхты: заострённый нос, прямые борта, плоская корма (в локальных координатах хитбокса).
-    final List<Vector2> hull = [
-      Vector2(size.x, size.y * 0.5),       // нос
-      Vector2(size.x * 0.82, 0),          // борт нос левый
-      Vector2(0, 0),                       // корма левый угол
-      Vector2(0, size.y),                 // корма правый угол
-      Vector2(size.x * 0.82, size.y),    // борт нос правый
+    // Полигон по форме яхты: острый нос, прямые борта, плоская корма (координаты хитбокса, position: -size/2).
+    final List<Vector2> boatShape = [
+      Vector2(size.x, size.y / 2),        // нос
+      Vector2(size.x * 0.2, 0),           // борт левый
+      Vector2(0, size.y * 0.2),            // корма левый угол
+      Vector2(0, size.y * 0.8),           // корма правый угол
+      Vector2(size.x * 0.2, size.y),     // борт правый
     ];
-    final Vector2 centroid = Vector2(
-      (size.x + size.x * 0.82 * 2) / 5,
-      (size.y * 0.5 + 0 + 0 + size.y + size.y) / 5,
-    );
-    final List<Vector2> boatShape = hull.map((v) {
-      final d = v - centroid;
-      final len = d.length;
-      if (len < 0.001) return v;
-      return v + d.normalized() * _fenderPx;
-    }).toList();
 
     add(PolygonHitbox(
       boatShape,
@@ -92,6 +82,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   @override
   void update(double dt) {
     super.update(dt);
+    if (dt <= 0.1) _lastDt = dt;
     _checkMooringConditions();
     // Защита от больших скачков времени (например, при сворачивании окна)
     if (dt > 0.1) return;
@@ -177,6 +168,13 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
     super.onCollision(intersectionPoints, other);
     if (intersectionPoints.isEmpty) return;
+    if (other is Dock) {
+      position -= velocity * (_lastDt * Constants.pixelRatio);
+      YachtPhysics.stop((v, a) {
+        velocity = v;
+        angularVelocity = a;
+      });
+    }
     if (other is Dock || other is MooredYacht) {
       Vector2 forwardDir = Vector2(math.cos(angle), math.sin(angle));
       Vector2 lateralDir = Vector2(-forwardDir.y, forwardDir.x);
@@ -229,10 +227,10 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
   void _triggerCrash(String message) {
+    game.pauseEngine();
     velocity = Vector2.zero();
     angularVelocity = 0;
     game.statusMessage = message;
-    // Вызываем метод проигрыша в основной игре
     game.onGameOver(message);
   }
 

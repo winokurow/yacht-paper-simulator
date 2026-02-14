@@ -71,6 +71,11 @@ class YachtPhysics {
     return (accel, damping);
   }
 
+  /// Мгновенная остановка: обнуляет линейную и угловую скорости (вызывать из onCollision при ударе).
+  static void stop(void Function(Vector2 linearVelocity, double angularVelocity) setVelocities) {
+    setVelocities(Vector2.zero(), 0);
+  }
+
   /// Количество шагов субстеппинга и dt одного шага. distPixels — перемещение за кадр в пикселях.
   static (int steps, double stepDt) integrationSteps(double distPixels, double dt, {int maxSteps = 25, double stepSize = 1.0}) {
     if (distPixels <= 0.001) return (0, 0);

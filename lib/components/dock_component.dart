@@ -16,14 +16,18 @@ class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
 
   static const double bollardYFactor = 0.8;
 
+  /// Отступ хитбокса от краёв (если текстура с padding), чтобы коллизия — по видимому краю дерева/бетона.
+  static const double _hitboxPaddingBottom = 2.0;
+  static const double _hitboxPaddingSides = 0.0;
+
   Dock({
     required this.bollardXPositions,
     required Vector2 position,
     required Vector2 size,
   }) : super(position: position, size: size) {
     add(RectangleHitbox(
-      size: Vector2(size.x, size.y - 2),
-      position: Vector2.zero(),
+      position: Vector2(_hitboxPaddingSides, 0),
+      size: Vector2(size.x - 2 * _hitboxPaddingSides, size.y - _hitboxPaddingBottom),
       collisionType: CollisionType.passive,
     ));
   }
