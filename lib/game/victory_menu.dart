@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yacht/generated/l10n/app_localizations.dart';
 import '../game/yacht_game.dart';
 
 class VictoryMenu extends StatelessWidget {
@@ -8,6 +9,7 @@ class VictoryMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Container(
         padding: const EdgeInsets.all(30),
@@ -20,17 +22,17 @@ class VictoryMenu extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'УСПЕШНАЯ ШВАРТОВКА!',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green),
+            Text(
+              l10n.victoryTitle,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green),
             ),
             const SizedBox(height: 20),
-            const Text('Вы идеально закрепили судно.', style: TextStyle(fontSize: 18)),
+            Text(l10n.victoryMessage, style: const TextStyle(fontSize: 18)),
             const SizedBox(height: 30),
             ElevatedButton(
               onPressed: () => game.resetGame(),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-              child: const Text('ИГРАТЬ СНОВА'),
+              child: Text(l10n.victoryPlayAgain),
             ),
           ],
         ),

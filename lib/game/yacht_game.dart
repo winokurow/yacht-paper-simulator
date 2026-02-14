@@ -15,6 +15,7 @@ import '../core/constants.dart';
 import '../core/marina_layout.dart';
 import '../core/camera_math.dart';
 import '../core/test_logger.dart';
+import '../generated/l10n/app_localizations.dart';
 import '../model/level_config.dart';
 import '../ui/dashboard_base.dart';
 
@@ -23,6 +24,9 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   Dock? dock;
   late Sea sea;
   double totalGameTime = 0;
+
+  /// Локализации для использования в компонентах без BuildContext (устанавливается из GameView).
+  AppLocalizations? l10n;
 
   // Состояние уровня
   LevelConfig? currentLevel;

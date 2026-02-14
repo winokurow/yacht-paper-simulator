@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:yacht/generated/l10n/app_localizations.dart';
 import '../model/level_config.dart';
-
 import '../game/yacht_game.dart';
 import '../game/game_view.dart';
 
@@ -19,13 +19,14 @@ class _BriefingDialogState extends State<BriefingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
         width: 500,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFFE0C9A6), // Цвет картона
+          color: const Color(0xFFE0C9A6),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(color: const Color(0xFF5D4037), width: 3),
           boxShadow: const [
@@ -36,9 +37,8 @@ class _BriefingDialogState extends State<BriefingDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ЗАГОЛОВОК
               Text(
-                "БРИФИНГ: ${widget.level.name.toUpperCase()}",
+                l10n.briefingTitle(widget.level.name.toUpperCase()),
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -70,16 +70,14 @@ class _BriefingDialogState extends State<BriefingDialog> {
 
               const SizedBox(height: 25),
 
-              // НАСТРОЙКИ
-              const Text(
-                "НАСТРОЙКИ СЕССИИ",
-                style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+              Text(
+                l10n.briefingSessionSettings,
+                style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
               ),
               const SizedBox(height: 10),
 
-              // Слайдер Ветра
               _buildSettingRow(
-                label: "СИЛА ВЕТРА:",
+                label: l10n.windStrength,
                 widget: Expanded(
                   child: Slider(
                     value: windMult,
@@ -95,26 +93,24 @@ class _BriefingDialogState extends State<BriefingDialog> {
                 valueText: "${(windMult * 100).toInt()}%",
               ),
 
-              // Переключатель Винта
               _buildSettingRow(
-                label: "ВИНТ ПРАВОГО ШАГА:",
+                label: l10n.propellerRightHanded,
                 widget: Switch(
                   value: isRightHanded,
                   activeColor: Colors.brown,
                   onChanged: (val) => setState(() => isRightHanded = val),
                 ),
-                valueText: isRightHanded ? "ДА" : "НЕТ",
+                valueText: isRightHanded ? l10n.yes : l10n.no,
               ),
 
               const SizedBox(height: 30),
 
-              // КНОПКИ ДЕЙСТВИЯ
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("ОТМЕНА", style: TextStyle(color: Colors.brown)),
+                    child: Text(l10n.cancel, style: const TextStyle(color: Colors.brown)),
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -123,7 +119,7 @@ class _BriefingDialogState extends State<BriefingDialog> {
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                     ),
                     onPressed: _startGame,
-                    child: const Text("В ПУТЬ!", style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(l10n.startJourney, style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

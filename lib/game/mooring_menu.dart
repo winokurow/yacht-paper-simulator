@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yacht/generated/l10n/app_localizations.dart';
 import '../game/yacht_game.dart';
 
 class MooringMenu extends StatelessWidget {
@@ -8,30 +9,26 @@ class MooringMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Stack(
       children: [
         Positioned(
-          bottom: 140, // Настройте высоту под ваш интерфейс
+          bottom: 140,
           left: 0,
           right: 0,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Кнопка для носа
               if (game.bowButtonActive)
                 _MooringButton(
-                  label: 'НОСОВОЙ',
+                  label: l10n.mooringBow,
                   onPressed: game.moerBow,
                 ),
-
-              // Разделитель, если обе кнопки активны
               if (game.bowButtonActive && game.sternButtonActive)
                 const SizedBox(width: 20),
-
-              // Кнопка для кормы
               if (game.sternButtonActive)
                 _MooringButton(
-                  label: 'КОРМОВОЙ',
+                  label: l10n.mooringStern,
                   onPressed: game.moerStern,
                 ),
             ],

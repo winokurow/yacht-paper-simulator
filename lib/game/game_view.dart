@@ -1,10 +1,10 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:yacht/generated/l10n/app_localizations.dart';
 import 'package:yacht/game/yacht_game.dart';
 import 'package:yacht/ui/level_selection_screen.dart';
 
 /// Виджет экрана игры с оверлеями (швартовка, проигрыш, победа).
-/// Вынесен в отдельный файл для использования в golden-тестах.
 class GameView extends StatelessWidget {
   final YachtMasterGame game;
 
@@ -12,6 +12,7 @@ class GameView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    game.l10n = AppLocalizations.of(context);
     return Scaffold(
       body: Stack(
         children: [
@@ -55,6 +56,7 @@ class MooringOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Positioned(
       bottom: 150,
       left: 0,
@@ -63,10 +65,10 @@ class MooringOverlay extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (game.bowButtonActive)
-            _mooringButton("ПОДАТЬ НОСОВОЙ", game.moerBow),
+            _mooringButton(l10n.mooringGiveBow, game.moerBow),
           const SizedBox(width: 20),
           if (game.sternButtonActive)
-            _mooringButton("ПОДАТЬ КОРМОВОЙ", game.moerStern),
+            _mooringButton(l10n.mooringGiveStern, game.moerStern),
         ],
       ),
     );
@@ -93,13 +95,16 @@ class GameOverOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: Colors.black54,
       child: Center(
         child: paperCard(
-          title: "ПРОИСШЕСТВИЕ",
+          context: context,
+          title: l10n.gameOverTitle,
           message: game.statusMessage,
-          buttonLabel: "ПЕРЕИГРАТЬ",
+          buttonLabel: l10n.gameOverRetry,
+          exitButtonLabel: l10n.gameOverMainMenu,
           onPressed: () => game.resetGame(),
           onExit: () => Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const LevelSelectionScreen()),
@@ -117,13 +122,16 @@ class VictoryOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: Colors.black26,
       child: Center(
         child: paperCard(
-          title: "УСПЕШНАЯ ШВАРТОВКА",
-          message: "Судно надежно закреплено в порту.",
-          buttonLabel: "СЛЕДУЮЩИЙ УРОВЕНЬ",
+          context: context,
+          title: l10n.victoryTitle,
+          message: l10n.victoryMessageShort,
+          buttonLabel: l10n.victoryNextLevel,
+          exitButtonLabel: l10n.gameOverMainMenu,
           onPressed: () => Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const LevelSelectionScreen()),
           ),
@@ -138,9 +146,11 @@ class VictoryOverlay extends StatelessWidget {
 
 /// Общий стиль карточек меню (paper style).
 Widget paperCard({
+  required BuildContext context,
   required String title,
   required String message,
   required String buttonLabel,
+  required String exitButtonLabel,
   required VoidCallback onPressed,
   required VoidCallback onExit,
 }) {
@@ -165,7 +175,7 @@ Widget paperCard({
         ),
         TextButton(
           onPressed: onExit,
-          child: const Text("В ГЛАВНОЕ МЕНЮ", style: TextStyle(color: Colors.brown)),
+          child: Text(exitButtonLabel, style: const TextStyle(color: Colors.brown)),
         ),
       ],
     ),

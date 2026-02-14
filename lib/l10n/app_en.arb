@@ -1,0 +1,45 @@
+{
+  "@@locale": "en",
+  "gameTitle": "Yacht Paper Simulator",
+  "menuStartGame": "Start Game",
+  "menuSettings": "Settings",
+  "menuLevels": "Levels",
+  "menuQuit": "Quit",
+  "controlThrottle": "Throttle",
+  "controlSteering": "Steering",
+  "controlWind": "Wind",
+  "stateVictory": "Victory!",
+  "stateGameOver": "Game Over",
+  "stateMooredSuccessfully": "Moored Successfully",
+  "settingsSelectLanguage": "Select Language",
+  "settingsSound": "Sound",
+  "settingsMusic": "Music",
+  "briefingTitle": "BRIEFING: {levelName}",
+  "@briefingTitle": {
+    "placeholders": {
+      "levelName": {
+        "type": "String"
+      }
+    }
+  },
+  "briefingSessionSettings": "SESSION SETTINGS",
+  "windStrength": "WIND STRENGTH:",
+  "propellerRightHanded": "RIGHT-HAND PROPELLER:",
+  "yes": "YES",
+  "no": "NO",
+  "cancel": "CANCEL",
+  "startJourney": "SET SAIL!",
+  "mooringBow": "BOW",
+  "mooringStern": "STERN",
+  "mooringGiveBow": "MOOR BOW",
+  "mooringGiveStern": "MOOR STERN",
+  "victoryTitle": "SUCCESSFUL MOORING!",
+  "victoryMessage": "You have secured the vessel perfectly.",
+  "victoryPlayAgain": "PLAY AGAIN",
+  "victoryNextLevel": "NEXT LEVEL",
+  "victoryMessageShort": "Vessel securely moored.",
+  "gameOverTitle": "INCIDENT",
+  "gameOverRetry": "RETRY",
+  "gameOverMainMenu": "MAIN MENU",
+  "levelSelectionTitle": "SHIP'S LOG"
+}
