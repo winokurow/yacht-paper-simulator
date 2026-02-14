@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:yacht/components/dock_component.dart';
-import 'package:yacht/components/MooredYacht.dart';
+import 'package:yacht/components/moored_yacht.dart';
 import 'package:yacht/components/yacht_player.dart';
 import 'package:yacht/core/constants.dart';
 import 'package:yacht/game/yacht_game.dart';

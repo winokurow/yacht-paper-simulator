@@ -1,6 +1,31 @@
 import 'package:flame/extensions.dart';
+import 'package:yacht/generated/l10n/app_localizations.dart';
 
 enum EnvironmentType { marina, river, openSea }
+
+/// Возвращает локализованное название уровня. Для неизвестного id — [level.name].
+String levelLocalizedName(AppLocalizations l10n, LevelConfig level) {
+  switch (level.id) {
+    case 1:
+      return l10n.level1Name;
+    case 2:
+      return l10n.level2Name;
+    default:
+      return level.name;
+  }
+}
+
+/// Возвращает локализованное описание уровня. Для неизвестного id — [level.description].
+String levelLocalizedDescription(AppLocalizations l10n, LevelConfig level) {
+  switch (level.id) {
+    case 1:
+      return l10n.level1Description;
+    case 2:
+      return l10n.level2Description;
+    default:
+      return level.description;
+  }
+}
 
 class BoatPlacement {
   final String type; // 'boat' или 'player_slot'

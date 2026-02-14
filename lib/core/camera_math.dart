@@ -13,6 +13,8 @@ class CameraMath {
   static const double minVisibleHeightMeters = 15.0;
   static const double dockFillRatio = 0.85;
   static const double yachtFillRatio = 0.8;
+  /// Скорость лерпа зума камеры (1/с).
+  static const double zoomLerpSpeed = 2.0;
 
   /// Целевой зум, чтобы расстояние до причала занимало долю экрана.
   static double targetZoomFromDistanceToDock(double distanceToDockPixels) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:yacht/generated/l10n/app_localizations.dart';
-import '../model/level_config.dart';
+import '../model/level_config.dart' show LevelConfig, levelLocalizedName, levelLocalizedDescription;
 import '../game/yacht_game.dart';
 import '../game/game_view.dart';
 
@@ -38,7 +38,7 @@ class _BriefingDialogState extends State<BriefingDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                l10n.briefingTitle(widget.level.name.toUpperCase()),
+                l10n.briefingTitle(levelLocalizedName(l10n, widget.level).toUpperCase()),
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -58,7 +58,7 @@ class _BriefingDialogState extends State<BriefingDialog> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  widget.level.description,
+                  levelLocalizedDescription(l10n, widget.level),
                   style: const TextStyle(
                     fontSize: 16,
                     color: Color(0xFF3E2723),

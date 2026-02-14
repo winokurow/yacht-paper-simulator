@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../model/level_config.dart';
+import 'package:yacht/generated/l10n/app_localizations.dart';
+import '../model/level_config.dart' show LevelConfig, levelLocalizedName, levelLocalizedDescription;
 import '../game/yacht_game.dart';
 import '../game/game_view.dart';
 
@@ -41,20 +42,24 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
 
   static double _degToRad(double deg) => deg * math.pi / 180;
 
-  static String _directionLabel(double deg) {
-    const labels = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
-    int i = ((deg + 22.5) / 45).floor() % 8;
+  static String _directionLabel(AppLocalizations l10n, double deg) {
+    final labels = [
+      l10n.compassN, l10n.compassNE, l10n.compassE, l10n.compassSE,
+      l10n.compassS, l10n.compassSW, l10n.compassW, l10n.compassNW,
+    ];
+    final i = ((deg + 22.5) / 45).floor() % 8;
     return labels[i];
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFF3E2723),
       appBar: AppBar(
         backgroundColor: const Color(0xFF5D4037),
         foregroundColor: Colors.white,
-        title: const Text('Настройки уровня'),
+        title: Text(l10n.levelSettingsTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -88,7 +93,7 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            widget.level.name.toUpperCase(),
+                            levelLocalizedName(l10n, widget.level).toUpperCase(),
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -98,7 +103,7 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            widget.level.description,
+                            levelLocalizedDescription(l10n, widget.level),
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.brown.shade800,
@@ -109,9 +114,9 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                           const Divider(color: Color(0xFF5D4037), thickness: 2),
                           const SizedBox(height: 16),
 
-                          const _SectionTitle(title: 'ВЕТЕР'),
+                          _SectionTitle(title: l10n.sectionWind),
                           _buildSliderRow(
-                            label: 'Сила',
+                            label: l10n.labelStrength,
                             value: windMult,
                             min: 0,
                             max: 2,
@@ -127,12 +132,12 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                             onChanged: (v) => setState(() => windMult = v),
                           ),
                           _buildSliderRow(
-                            label: 'Направление',
+                            label: l10n.labelDirection,
                             value: windDirectionDeg,
                             min: 0,
                             max: 360,
                             divisions: 16,
-                            format: () => '${windDirectionDeg.toInt()}° ${_directionLabel(windDirectionDeg)}',
+                            format: () => '${windDirectionDeg.toInt()}° ${_directionLabel(l10n, windDirectionDeg)}',
                           ),
                           Slider(
                             value: windDirectionDeg,
@@ -144,9 +149,9 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          const _SectionTitle(title: 'ТЕЧЕНИЕ'),
+                          _SectionTitle(title: l10n.sectionCurrent),
                           _buildSliderRow(
-                            label: 'Скорость',
+                            label: l10n.labelSpeed,
                             value: currentSpeed,
                             min: 0,
                             max: 2.5,
@@ -162,12 +167,12 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                             onChanged: (v) => setState(() => currentSpeed = v),
                           ),
                           _buildSliderRow(
-                            label: 'Направление',
+                            label: l10n.labelDirection,
                             value: currentDirectionDeg,
                             min: 0,
                             max: 360,
                             divisions: 16,
-                            format: () => '${currentDirectionDeg.toInt()}° ${_directionLabel(currentDirectionDeg)}',
+                            format: () => '${currentDirectionDeg.toInt()}° ${_directionLabel(l10n, currentDirectionDeg)}',
                           ),
                           Slider(
                             value: currentDirectionDeg,
@@ -179,14 +184,14 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          const _SectionTitle(title: 'ЗАБРОС ВИНТА'),
+                          _SectionTitle(title: l10n.sectionPropeller),
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: _propellerChip(
-                                    label: 'Правый',
+                                    label: l10n.propellerRight,
                                     selected: propellerRightHanded,
                                     onTap: () => setState(() => propellerRightHanded = true),
                                   ),
@@ -194,7 +199,7 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: _propellerChip(
-                                    label: 'Левый',
+                                    label: l10n.propellerLeft,
                                     selected: !propellerRightHanded,
                                     onTap: () => setState(() => propellerRightHanded = false),
                                   ),
@@ -222,9 +227,9 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text(
-                        'НАЗАД',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.buttonBack,
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontWeight: FontWeight.bold,
                         ),
@@ -240,9 +245,9 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                         ),
                       ),
                       onPressed: _startGame,
-                      child: const Text(
-                        'В ПУТЬ!',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      child: Text(
+                        l10n.startJourney,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],

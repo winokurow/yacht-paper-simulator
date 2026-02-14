@@ -4,11 +4,12 @@ import 'package:flame/camera.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../components/yacht_player.dart';
-import '../components/MooredYacht.dart';
+import '../components/moored_yacht.dart';
 import '../components/dock_component.dart';
 import '../components/sea_component.dart';
 import '../core/constants.dart';
@@ -42,7 +43,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   bool _victoryTriggered = false;
 
   List<double> playerBollards = [];
-  final Rect playArea = const Rect.fromLTWH(0, 0, 10000, 10000);
+  Rect get playArea => Rect.fromLTWH(0, 0, Constants.playAreaWidth, Constants.playAreaHeight);
 
   // В начало класса YachtMasterGame
   double _lastWindMult = 1.0;
@@ -168,8 +169,8 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
     // Текстура стола под бумагой
     world.add(RectangleComponent(
-      size: Vector2(10000, 10000),
-      position: Vector2(-4000, -3000),
+      size: Vector2(Constants.tableSize, Constants.tableSize),
+      position: Vector2(Constants.tableOffsetX, Constants.tableOffsetY),
       paint: Paint()..color = const Color(0xFF3E2723),
       priority: -20,
     ));
@@ -203,7 +204,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     dock = Dock(
       bollardXPositions: playerBollards,
       position: Vector2(dockX, playArea.top),
-      size: Vector2(dockWidth, 140.0),
+      size: Vector2(dockWidth, Constants.dockHeightPixels),
     );
     dock!.priority = -5;
     world.add(dock!);
@@ -232,14 +233,12 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void _setupRiverLayout(LevelConfig config) {
-    // Тут можно добавить берега реки
-    updateStatus("River flow detected: ${config.defaultCurrentSpeed} kts");
+    updateStatus(l10n?.statusRiverFlow(config.defaultCurrentSpeed.toStringAsFixed(1)) ?? 'River flow: ${config.defaultCurrentSpeed} kts');
   }
 
   void _setupOpenSeaLayout(LevelConfig config) {
-    // В открытом море причала нет
     dock = null;
-    updateStatus("High seas. Maintain position.");
+    updateStatus(l10n?.statusHighSeas ?? 'High seas. Maintain position.');
   }
 
   // --- ИГРОВОЙ ЦИКЛ ---
@@ -261,16 +260,16 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     _handleInput(dt);
     _checkVictoryCondition();
     _checkOutOfBounds();
-
   }
 
   void _updateSmartCamera(double dt) {
     if (dock == null) return;
 
+    camera.viewfinder.anchor = Anchor.topCenter;
     double distancePixels = (yacht.position.y - dock!.position.y).abs();
     if (distancePixels < 1) distancePixels = 1;
     double targetZoom = CameraMath.targetZoomSmart(distancePixels);
-    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * 2.0;
+    camera.viewfinder.zoom += (targetZoom - camera.viewfinder.zoom) * dt * CameraMath.zoomLerpSpeed;
     camera.viewfinder.zoom = camera.viewfinder.zoom.clamp(CameraMath.zoomMin, CameraMath.zoomMax);
 
     double currentWorldHeight = CameraMath.worldHeightAtZoom(camera.viewfinder.zoom);
@@ -280,10 +279,10 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   void _handleInput(double dt) {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    if (keys.contains(LogicalKeyboardKey.keyW)) yacht.targetThrottle += 0.8 * dt;
-    if (keys.contains(LogicalKeyboardKey.keyS)) yacht.targetThrottle -= 0.8 * dt;
-    if (keys.contains(LogicalKeyboardKey.keyA)) yacht.targetRudderAngle -= 1.2 * dt;
-    if (keys.contains(LogicalKeyboardKey.keyD)) yacht.targetRudderAngle += 1.2 * dt;
+    if (keys.contains(LogicalKeyboardKey.keyW)) yacht.targetThrottle += Constants.inputThrottleRate * dt;
+    if (keys.contains(LogicalKeyboardKey.keyS)) yacht.targetThrottle -= Constants.inputThrottleRate * dt;
+    if (keys.contains(LogicalKeyboardKey.keyA)) yacht.targetRudderAngle -= Constants.inputRudderRate * dt;
+    if (keys.contains(LogicalKeyboardKey.keyD)) yacht.targetRudderAngle += Constants.inputRudderRate * dt;
 
     yacht.targetThrottle = yacht.targetThrottle.clamp(-1.0, 1.0);
     yacht.targetRudderAngle = yacht.targetRudderAngle.clamp(-1.0, 1.0);
@@ -299,13 +298,13 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   void _checkVictoryCondition() {
     if (_victoryTriggered) return;
     bool moored = yacht.bowMooredTo != null && yacht.sternMooredTo != null;
-    bool stopped = yacht.velocity.length < (0.2 * Constants.pixelRatio);
+    bool stopped = yacht.velocity.length < Constants.victorySpeedThresholdPixels;
 
     if (moored && stopped) {
       _victoryTriggered = true;
       pauseEngine();
-      statusMessage = "MISSION ACCOMPLISHED";
-      print('DEBUG: Victory triggered!'); // Добавьте для проверки
+      statusMessage = l10n?.statusMissionAccomplished ?? 'MISSION ACCOMPLISHED';
+      debugPrint('Victory triggered');
       TestLogger.printFinalBlock();
       overlays.add('Victory');
     }
@@ -319,7 +318,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   void onGameOver(String reason) {
     pauseEngine();
-    statusMessage = "FAILED: $reason";
+    statusMessage = l10n != null ? '${l10n!.statusFailed}: $reason' : 'FAILED: $reason';
     overlays.add('GameOver');
   }
 
@@ -366,11 +365,11 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     if (isBow) {
       yacht.bowMooredTo = target;
       yacht.bowRopeRestLength = yacht.bowWorldPosition.distanceTo(target);
-      updateStatus("Bow line secured");
+      updateStatus(l10n?.statusBowSecured ?? 'Bow line secured');
     } else {
       yacht.sternMooredTo = target;
       yacht.sternRopeRestLength = yacht.sternWorldPosition.distanceTo(target);
-      updateStatus("Stern line secured");
+      updateStatus(l10n?.statusSternSecured ?? 'Stern line secured');
     }
   }
 
@@ -390,8 +389,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       isRightHanded: _lastIsRightHanded,
     );
 
-    // 3. Сбрасываем сообщение в интерфейсе
-    updateStatus("Level Restarted");
+    updateStatus(l10n?.statusLevelRestarted ?? 'Level Restarted');
   }
 
   void showMooringButtons(bool bow, bool stern) {

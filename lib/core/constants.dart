@@ -49,7 +49,36 @@ class Constants {
   static const double currentDirection = 1.57;
 
   static const double restitution = 0.3;    // Мягкий отскок
-// Скорость выше 0.8 м/с (около 1.5 узлов) при боковом ударе считается аварией
+  /// Скорость выше порога при боковом ударе считается аварией (м/с).
   static const double maxSafeImpactSpeed = 1.5;
 
+  // --- ВВОД (скорость изменения от клавиш за 1 с) ---
+  static const double inputThrottleRate = 0.8;
+  static const double inputRudderRate = 1.2;
+
+  // --- ПОБЕДА И ШВАРТОВКА ---
+  /// Порог скорости (пиксели/кадр), ниже которого яхта считается остановленной для победы.
+  static const double victorySpeedThresholdPixels = 0.2 * pixelRatio;
+  /// Скорость изменения газа к targetThrottle за 1 с.
+  static const double throttleChangeSpeed = 1.2;
+  /// Порог линейной скорости для обнуления (анти-дрожание).
+  static const double velocityZeroThreshold = 0.05;
+  /// Порог угловой скорости для обнуления.
+  static const double angularZeroThreshold = 0.005;
+  /// Сектор носа: локальный X > size.x * noseSectorFactor считается ударом носом.
+  static const double noseSectorFactor = 0.3;
+  /// Дистанция до тумбы (пиксели), в пределах которой доступна швартовка.
+  static const double mooringBollardProximityPixels = 3.5 * pixelRatio;
+  /// Макс. скорость (пиксели/кадр) для показа кнопок швартовки.
+  static const double mooringSpeedThresholdPixels = 1.2 * pixelRatio;
+
+  // --- МИР ---
+  static const double playAreaWidth = 10000.0;
+  static const double playAreaHeight = 10000.0;
+  /// Смещение фона "стола" под бумагой.
+  static const double tableOffsetX = -4000.0;
+  static const double tableOffsetY = -3000.0;
+  static const double tableSize = 10000.0;
+  /// Высота причала (пиксели).
+  static const double dockHeightPixels = 140.0;
 }

@@ -114,4 +114,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get levelSelectionTitle => 'SHIP\'S LOG';
+
+  @override
+  String get statusWaiting => 'Waiting for command...';
+
+  @override
+  String get statusBowSecured => 'Bow line secured';
+
+  @override
+  String get statusSternSecured => 'Stern line secured';
+
+  @override
+  String get statusLevelRestarted => 'Level Restarted';
+
+  @override
+  String get statusMissionAccomplished => 'MISSION ACCOMPLISHED';
+
+  @override
+  String get statusFailed => 'FAILED';
+
+  @override
+  String statusRiverFlow(String speed) {
+    return 'River flow: $speed kts';
+  }
+
+  @override
+  String get statusHighSeas => 'High seas. Maintain position.';
+
+  @override
+  String get crashNose => 'CRITICAL: Nose collision!';
+
+  @override
+  String get crashSide => 'ACCIDENT: Side impact too strong.';
+
+  @override
+  String get level1Name => 'First Berth';
+
+  @override
+  String get level1Description =>
+      'Quiet marina. Park the yacht in the free slot between other vessels.';
+
+  @override
+  String get level2Name => 'Seine Current';
+
+  @override
+  String get level2Description =>
+      'Tricky mooring on the river with strong lateral current.';
+
+  @override
+  String get levelSettingsTitle => 'Level Settings';
+
+  @override
+  String get sectionWind => 'WIND';
+
+  @override
+  String get sectionCurrent => 'CURRENT';
+
+  @override
+  String get sectionPropeller => 'PROPELLER';
+
+  @override
+  String get labelStrength => 'Strength';
+
+  @override
+  String get labelDirection => 'Direction';
+
+  @override
+  String get labelSpeed => 'Speed';
+
+  @override
+  String get propellerRight => 'Right';
+
+  @override
+  String get propellerLeft => 'Left';
+
+  @override
+  String get buttonBack => 'BACK';
+
+  @override
+  String get compassN => 'N';
+
+  @override
+  String get compassNE => 'NE';
+
+  @override
+  String get compassE => 'E';
+
+  @override
+  String get compassSE => 'SE';
+
+  @override
+  String get compassS => 'S';
+
+  @override
+  String get compassSW => 'SW';
+
+  @override
+  String get compassW => 'W';
+
+  @override
+  String get compassNW => 'NW';
 }

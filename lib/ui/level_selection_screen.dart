@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yacht/generated/l10n/app_localizations.dart';
 import 'package:yacht/l10n/locale_notifier.dart';
-import '../model/level_config.dart';
+import '../model/level_config.dart' show EnvironmentType, GameLevels, LevelConfig, levelLocalizedName, levelLocalizedDescription;
 import 'level_settings_screen.dart';
 
 class LevelSelectionScreen extends StatelessWidget {
@@ -41,7 +41,7 @@ class LevelSelectionScreen extends StatelessWidget {
                   itemCount: GameLevels.allLevels.length,
                   itemBuilder: (context, index) {
                     final level = GameLevels.allLevels[index];
-                    return _buildLevelCard(context, level);
+                    return _buildLevelCard(context, level, l10n);
                   },
                 ),
               ),
@@ -52,14 +52,14 @@ class LevelSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLevelCard(BuildContext context, LevelConfig level) {
+  Widget _buildLevelCard(BuildContext context, LevelConfig level, AppLocalizations l10n) {
     return Card(
       color: Colors.white.withOpacity(0.5),
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: ListTile(
         leading: _getIconForType(level.envType),
-        title: Text(level.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(level.description),
+        title: Text(levelLocalizedName(l10n, level), style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(levelLocalizedDescription(l10n, level)),
         trailing: const Icon(Icons.arrow_forward_ios),
         onTap: () => _openSettings(context, level),
       ),

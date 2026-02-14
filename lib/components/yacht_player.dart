@@ -9,7 +9,7 @@ import '../core/constants.dart';
 import '../core/yacht_physics.dart';
 import 'package:flame/extensions.dart';
 import '../game/yacht_game.dart';
-import 'MooredYacht.dart';
+import 'moored_yacht.dart';
 import 'dock_component.dart';
 
 class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameReference<YachtMasterGame> {
@@ -58,6 +58,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
 
   /// Последний dt для Position Correction в onCollision (откат на шаг назад).
   double _lastDt = 1 / 60.0;
+  /// Время с последнего всплеска (для ограничения частоты частиц).
+  double _lastSplashTime = 0.0;
 
   @override
   Future<void> onLoad() async {
@@ -82,6 +84,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   @override
   void update(double dt) {
     super.update(dt);
+    _lastSplashTime += dt;
     if (dt <= 0.1) _lastDt = dt;
     _checkMooringConditions();
     // Защита от больших скачков времени (например, при сворачивании окна)
@@ -99,9 +102,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     }
 
     // --- 2. УПРАВЛЕНИЕ ГАЗОМ (Плавное изменение) ---
-    double throttleChangeSpeed = 1.2;
     if ((throttle - targetThrottle).abs() > 0.01) {
-      throttle += (targetThrottle > throttle ? 1 : -1) * throttleChangeSpeed * dt;
+      throttle += (targetThrottle > throttle ? 1 : -1) * Constants.throttleChangeSpeed * dt;
       throttle = throttle.clamp(-1.0, 1.0);
     }
 
@@ -157,10 +159,9 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     if (sternMooredTo != null && sternRopeRestLength != null) _applyMooringPhysics(dt, sternMooredTo, _sternRopeLocal, sternRopeRestLength);
 
     // --- СТАБИЛИЗАЦИЯ (Анти-дрожание) ---
-    // Если скорость меньше 0.05 пикселей в кадр, принудительно обнуляем её
-    if (throttle.abs() < 0.01 && velocity.length < 0.05) {
+    if (throttle.abs() < 0.01 && velocity.length < Constants.velocityZeroThreshold) {
       velocity = Vector2.zero();
-      if (angularVelocity.abs() < 0.005) angularVelocity = 0;
+      if (angularVelocity.abs() < Constants.angularZeroThreshold) angularVelocity = 0;
     }
   }
 
@@ -183,7 +184,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     }
     final worldCollisionPoint = intersectionPoints.first;
     final localCollisionPoint = parentToLocal(worldCollisionPoint);
-    bool isNoseHit = localCollisionPoint.x > (size.x * 0.3);
+    bool isNoseHit = localCollisionPoint.x > (size.x * Constants.noseSectorFactor);
     bool isHighSpeed = velocity.length > Constants.maxSafeImpactSpeed;
     if (isNoseHit && isHighSpeed) return;
     if (isHighSpeed) return;
@@ -204,19 +205,16 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
 
     // Нос у нас начинается примерно с 80% длины лодки.
     // В локальных координатах (от -size.x/2 до size.x/2) это всё,
-    // что находится правее (впереди) отметки size.x * 0.3
-    bool isNoseHit = localCollisionPoint.x > (size.x * 0.3);
+    // что находится правее (впереди) отметки size.x * noseSectorFactor
+    bool isNoseHit = localCollisionPoint.x > (size.x * Constants.noseSectorFactor);
 
     // Проверка скорости (используем м/с)
     bool isHighSpeed = velocity.length > Constants.maxSafeImpactSpeed;
 
     if (isNoseHit && isHighSpeed) {
-      // Любое касание носом — это фатально
-      _triggerCrash("КРИТИЧЕСКАЯ ОШИБКА: Столкновение носом!");
+      _triggerCrash(game.l10n?.crashNose ?? 'CRITICAL: Nose collision!');
     } else if (isHighSpeed) {
-      // Удар любой другой частью (борт, корма) на высокой скорости
-      double speedKnots = velocity.length * 1.94;
-      _triggerCrash("АВАРИЯ: Слишком сильный удар бортом)");
+      _triggerCrash(game.l10n?.crashSide ?? 'ACCIDENT: Side impact too strong.');
     } else {
       // Мягкое касание бортом или кормой при швартовке
       _handleSoftCollision(worldCollisionPoint, other);
@@ -323,24 +321,27 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
   void _checkMooringConditions() {
-    if (game.dock!.bollardXPositions.isEmpty) return;
+    if (game.dock == null) return;
+    final d = game.dock!;
+    if (d.bollardXPositions.isEmpty) return;
 
-    final double bollardY = game.dock!.position.y + game.dock!.size.y;
-    List<Vector2>? bollards = game.dock?.bollardXPositions.map((x) => Vector2(game.dock!.position.x + x, bollardY)).toList();
+    final double bollardY = d.position.y + d.size.y;
+    final List<Vector2> bollards = d.bollardXPositions.map((x) => Vector2(d.position.x + x, bollardY)).toList();
+    if (bollards.isEmpty) return;
 
     Vector2 mBowR = localToParent(Vector2(size.x * 0.4, size.y * 0.35));
     Vector2 mBowL = localToParent(Vector2(size.x * 0.4, -size.y * 0.35));
     Vector2 mSternR = localToParent(Vector2(-size.x * 0.4, size.y * 0.35));
     Vector2 mSternL = localToParent(Vector2(-size.x * 0.4, -size.y * 0.35));
 
-    double? dBow = bollards?.map((b) => math.min(mBowR.distanceTo(b), mBowL.distanceTo(b))).reduce(math.min);
-    double? dStern = bollards?.map((b) => math.min(mSternR.distanceTo(b), mSternL.distanceTo(b))).reduce(math.min);
+    double dBow = bollards.map((b) => math.min(mBowR.distanceTo(b), mBowL.distanceTo(b))).reduce(math.min);
+    double dStern = bollards.map((b) => math.min(mSternR.distanceTo(b), mSternL.distanceTo(b))).reduce(math.min);
 
-    double threshold = 3.5 * Constants.pixelRatio;
-    bool speedOk = velocity.length < 1.2 * Constants.pixelRatio;
+    final threshold = Constants.mooringBollardProximityPixels;
+    bool speedOk = velocity.length < Constants.mooringSpeedThresholdPixels;
 
-    canMoerBow = dBow! < threshold && speedOk && bowMooredTo == null;
-    canMoerStern = dStern! < threshold && speedOk && sternMooredTo == null;
+    canMoerBow = dBow < threshold && speedOk && bowMooredTo == null;
+    canMoerStern = dStern < threshold && speedOk && sternMooredTo == null;
 
     if (canMoerBow || canMoerStern) {
       game.showMooringButtons(canMoerBow, canMoerStern);
@@ -350,6 +351,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
   void _createSplash(Vector2 impactPoint) {
+    if (_lastSplashTime < 0.4) return;
+    _lastSplashTime = 0.0;
     final rnd = math.Random();
     game.world.add(ParticleSystemComponent(
       position: impactPoint,

@@ -114,4 +114,104 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get levelSelectionTitle => 'СУДОВОЙ ЖУРНАЛ';
+
+  @override
+  String get statusWaiting => 'Ожидание команды...';
+
+  @override
+  String get statusBowSecured => 'Носовая отдана';
+
+  @override
+  String get statusSternSecured => 'Кормовая отдана';
+
+  @override
+  String get statusLevelRestarted => 'Уровень перезапущен';
+
+  @override
+  String get statusMissionAccomplished => 'МИССИЯ ВЫПОЛНЕНА';
+
+  @override
+  String get statusFailed => 'ПРОВАЛ';
+
+  @override
+  String statusRiverFlow(String speed) {
+    return 'Течение: $speed уз';
+  }
+
+  @override
+  String get statusHighSeas => 'Открытое море. Держите позицию.';
+
+  @override
+  String get crashNose => 'КРИТИЧНО: Столкновение носом!';
+
+  @override
+  String get crashSide => 'АВАРИЯ: Слишком сильный удар бортом.';
+
+  @override
+  String get level1Name => 'Первый причал';
+
+  @override
+  String get level1Description =>
+      'Тихая марина. Запаркуйте яхту в свободный слот между другими судами.';
+
+  @override
+  String get level2Name => 'Течение Сены';
+
+  @override
+  String get level2Description =>
+      'Сложная швартовка на реке с сильным боковым течением.';
+
+  @override
+  String get levelSettingsTitle => 'Настройки уровня';
+
+  @override
+  String get sectionWind => 'ВЕТЕР';
+
+  @override
+  String get sectionCurrent => 'ТЕЧЕНИЕ';
+
+  @override
+  String get sectionPropeller => 'ЗАБРОС ВИНТА';
+
+  @override
+  String get labelStrength => 'Сила';
+
+  @override
+  String get labelDirection => 'Направление';
+
+  @override
+  String get labelSpeed => 'Скорость';
+
+  @override
+  String get propellerRight => 'Правый';
+
+  @override
+  String get propellerLeft => 'Левый';
+
+  @override
+  String get buttonBack => 'НАЗАД';
+
+  @override
+  String get compassN => 'С';
+
+  @override
+  String get compassNE => 'СВ';
+
+  @override
+  String get compassE => 'В';
+
+  @override
+  String get compassSE => 'ЮВ';
+
+  @override
+  String get compassS => 'Ю';
+
+  @override
+  String get compassSW => 'ЮЗ';
+
+  @override
+  String get compassW => 'З';
+
+  @override
+  String get compassNW => 'СЗ';
 }

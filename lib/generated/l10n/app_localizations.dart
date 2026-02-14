@@ -309,6 +309,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SHIP\'S LOG'**
   String get levelSelectionTitle;
+
+  /// No description provided for @statusWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for command...'**
+  String get statusWaiting;
+
+  /// No description provided for @statusBowSecured.
+  ///
+  /// In en, this message translates to:
+  /// **'Bow line secured'**
+  String get statusBowSecured;
+
+  /// No description provided for @statusSternSecured.
+  ///
+  /// In en, this message translates to:
+  /// **'Stern line secured'**
+  String get statusSternSecured;
+
+  /// No description provided for @statusLevelRestarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Level Restarted'**
+  String get statusLevelRestarted;
+
+  /// No description provided for @statusMissionAccomplished.
+  ///
+  /// In en, this message translates to:
+  /// **'MISSION ACCOMPLISHED'**
+  String get statusMissionAccomplished;
+
+  /// No description provided for @statusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'FAILED'**
+  String get statusFailed;
+
+  /// No description provided for @statusRiverFlow.
+  ///
+  /// In en, this message translates to:
+  /// **'River flow: {speed} kts'**
+  String statusRiverFlow(String speed);
+
+  /// No description provided for @statusHighSeas.
+  ///
+  /// In en, this message translates to:
+  /// **'High seas. Maintain position.'**
+  String get statusHighSeas;
+
+  /// No description provided for @crashNose.
+  ///
+  /// In en, this message translates to:
+  /// **'CRITICAL: Nose collision!'**
+  String get crashNose;
+
+  /// No description provided for @crashSide.
+  ///
+  /// In en, this message translates to:
+  /// **'ACCIDENT: Side impact too strong.'**
+  String get crashSide;
+
+  /// No description provided for @level1Name.
+  ///
+  /// In en, this message translates to:
+  /// **'First Berth'**
+  String get level1Name;
+
+  /// No description provided for @level1Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet marina. Park the yacht in the free slot between other vessels.'**
+  String get level1Description;
+
+  /// No description provided for @level2Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Seine Current'**
+  String get level2Name;
+
+  /// No description provided for @level2Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Tricky mooring on the river with strong lateral current.'**
+  String get level2Description;
+
+  /// No description provided for @levelSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Level Settings'**
+  String get levelSettingsTitle;
+
+  /// No description provided for @sectionWind.
+  ///
+  /// In en, this message translates to:
+  /// **'WIND'**
+  String get sectionWind;
+
+  /// No description provided for @sectionCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'CURRENT'**
+  String get sectionCurrent;
+
+  /// No description provided for @sectionPropeller.
+  ///
+  /// In en, this message translates to:
+  /// **'PROPELLER'**
+  String get sectionPropeller;
+
+  /// No description provided for @labelStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get labelStrength;
+
+  /// No description provided for @labelDirection.
+  ///
+  /// In en, this message translates to:
+  /// **'Direction'**
+  String get labelDirection;
+
+  /// No description provided for @labelSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get labelSpeed;
+
+  /// No description provided for @propellerRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get propellerRight;
+
+  /// No description provided for @propellerLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get propellerLeft;
+
+  /// No description provided for @buttonBack.
+  ///
+  /// In en, this message translates to:
+  /// **'BACK'**
+  String get buttonBack;
+
+  /// No description provided for @compassN.
+  ///
+  /// In en, this message translates to:
+  /// **'N'**
+  String get compassN;
+
+  /// No description provided for @compassNE.
+  ///
+  /// In en, this message translates to:
+  /// **'NE'**
+  String get compassNE;
+
+  /// No description provided for @compassE.
+  ///
+  /// In en, this message translates to:
+  /// **'E'**
+  String get compassE;
+
+  /// No description provided for @compassSE.
+  ///
+  /// In en, this message translates to:
+  /// **'SE'**
+  String get compassSE;
+
+  /// No description provided for @compassS.
+  ///
+  /// In en, this message translates to:
+  /// **'S'**
+  String get compassS;
+
+  /// No description provided for @compassSW.
+  ///
+  /// In en, this message translates to:
+  /// **'SW'**
+  String get compassSW;
+
+  /// No description provided for @compassW.
+  ///
+  /// In en, this message translates to:
+  /// **'W'**
+  String get compassW;
+
+  /// No description provided for @compassNW.
+  ///
+  /// In en, this message translates to:
+  /// **'NW'**
+  String get compassNW;
 }
 
 class _AppLocalizationsDelegate

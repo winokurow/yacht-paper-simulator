@@ -1,4 +1,5 @@
 import 'package:flame/components.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:yacht/components/yacht_player.dart';
 
@@ -17,7 +18,7 @@ static void logEvent(String type, LogicalKeyboardKey key, double time, YachtPlay
           'ang: ${angle.toStringAsFixed(4)}, vx: ${vel.x.toStringAsFixed(2)}, vy: ${vel.y.toStringAsFixed(2)});'
   );
 
-  print('Logged: $type ${key.debugName} at $time');
+  debugPrint('Logged: $type ${key.debugName} at $time');
 }
 
 static String _formatKey(LogicalKeyboardKey key) {
@@ -29,9 +30,9 @@ return 'LogicalKeyboardKey.space';
 }
 
 static void printFinalBlock() {
-print('\n🚀 --- [NEW TIMELINE LOG] ---');
-print(_logs.join('\n'));
-print('-----------------------------\n');
+debugPrint('\n🚀 --- [NEW TIMELINE LOG] ---');
+debugPrint(_logs.join('\n'));
+debugPrint('-----------------------------\n');
 _logs.clear();
 }
 }
