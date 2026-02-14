@@ -28,8 +28,9 @@ class Constants {
 
   static const double lateralDragMultiplier = 5.0; // Эффект киля
   static PropellerType propType = PropellerType.rightHanded;
-  static const double propWalkEffect = 4.5;
-  /// Дистанция до причала (в пикселях), ниже которой при заднем ходе отключаем смещение винта, чтобы не заезжать на причал.
+  /// Эффект заброса кормы (prop walk); снижен под массу яхты, чтобы не заезжать на причал.
+  static const double propWalkEffect = 3.2;
+  /// Дистанция до причала (пиксели), ниже которой при заднем ходе отключаем prop walk.
   static const double propWalkSuppressDistanceToDockPixels = 4.0 * pixelRatio;
   static const double yachtInertia = 6000.0;
 

@@ -56,17 +56,31 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     angle = startAngleDegrees * (math.pi / 180);
   }
 
+  /// Расширение хитбокса «кранцы» (пиксели), чтобы столкновение срабатывало до касания спрайта причала.
+  static const double _fenderPx = 2.5;
+
   @override
   Future<void> onLoad() async {
     yachtSprite = await game.loadSprite('yacht_paper.png');
 
-    final boatShape = [
-      Vector2(size.x, size.y * 0.5),
-      Vector2(size.x * 0.8, 0),
-      Vector2(0, 0),
-      Vector2(0, size.y),
-      Vector2(size.x * 0.8, size.y),
+    // Обводы яхты: заострённый нос, прямые борта, плоская корма (в локальных координатах хитбокса).
+    final List<Vector2> hull = [
+      Vector2(size.x, size.y * 0.5),       // нос
+      Vector2(size.x * 0.82, 0),          // борт нос левый
+      Vector2(0, 0),                       // корма левый угол
+      Vector2(0, size.y),                 // корма правый угол
+      Vector2(size.x * 0.82, size.y),    // борт нос правый
     ];
+    final Vector2 centroid = Vector2(
+      (size.x + size.x * 0.82 * 2) / 5,
+      (size.y * 0.5 + 0 + 0 + size.y + size.y) / 5,
+    );
+    final List<Vector2> boatShape = hull.map((v) {
+      final d = v - centroid;
+      final len = d.length;
+      if (len < 0.001) return v;
+      return v + d.normalized() * _fenderPx;
+    }).toList();
 
     add(PolygonHitbox(
       boatShape,
@@ -130,7 +144,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     // --- 5. ФИЗИКА ВРАЩЕНИЯ ---
     double propWalk = YachtPhysics.propWalkTorque(throttle, speedMeters);
     if (throttle < 0 && _distanceToDockPixels() < Constants.propWalkSuppressDistanceToDockPixels) {
-      propWalk = 0; // у причала при заднем ходе не крутим от смещения винта — иначе заезжаем на причал
+      propWalk = 0;
     }
     double totalTorque = YachtPhysics.rudderTorque(_currentRudderAngle, speedMeters, throttle) + propWalk;
     angularVelocity += (totalTorque / Constants.yachtInertia) * dt;
@@ -163,6 +177,12 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
     super.onCollision(intersectionPoints, other);
     if (intersectionPoints.isEmpty) return;
+    if (other is Dock || other is MooredYacht) {
+      Vector2 forwardDir = Vector2(math.cos(angle), math.sin(angle));
+      Vector2 lateralDir = Vector2(-forwardDir.y, forwardDir.x);
+      double lateralSpeed = velocity.dot(lateralDir);
+      velocity -= lateralDir * lateralSpeed;
+    }
     final worldCollisionPoint = intersectionPoints.first;
     final localCollisionPoint = parentToLocal(worldCollisionPoint);
     bool isNoseHit = localCollisionPoint.x > (size.x * 0.3);

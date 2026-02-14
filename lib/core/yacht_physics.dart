@@ -45,12 +45,13 @@ class YachtPhysics {
   }
 
   /// Момент от заброса винта (prop walk) [Н·м].
+  /// Максимум на старте, плавно затухает с набором скорости (стабилизация руля в потоке).
   static double propWalkTorque(double throttle, double speedMeters) {
     if (throttle.abs() < 0.05) return 0;
     double sideSign = (Constants.propType == PropellerType.rightHanded) ? -1.0 : 1.0;
     double walkIntensity = (throttle < 0) ? 1.0 : 0.15;
-    double fadeFactor = (1.0 - (speedMeters / 4.0)).clamp(0.0, 1.0);
-    return sideSign * throttle.sign * Constants.propWalkEffect * walkIntensity * (fadeFactor * fadeFactor) * 2000;
+    double speedStabilization = (1.0 - (speedMeters / 5.0)).clamp(0.2, 1.0);
+    return sideSign * throttle.sign * Constants.propWalkEffect * walkIntensity * speedStabilization * 2000;
   }
 
   /// Ускорение от натяжения каната [м/с²]. strain = currentLength - restLength (в пикселях).
