@@ -14,13 +14,13 @@ import 'package:yacht/model/level_config.dart';
 enum CollisionOutcome { noseCrash, sideCrash, soft }
 
 /// Чистая функция: по локальной точке удара, размеру яхты и скорости возвращает исход.
-/// Физический смысл: сектор носа (x > sizeX*0.3) + критическая скорость дают фатальный исход.
+/// Физический смысл: сектор носа (x > sizeX*noseSectorFactor) + критическая скорость дают фатальный исход.
 CollisionOutcome resolveCollisionOutcome(
   Vector2 localCollisionPoint,
   double sizeX,
   double velocityLengthMeters,
 ) {
-  bool isNoseHit = localCollisionPoint.x > (sizeX * 0.3);
+  bool isNoseHit = localCollisionPoint.x > (sizeX * Constants.noseSectorFactor);
   bool isHighSpeed = velocityLengthMeters > Constants.maxSafeImpactSpeed;
   if (isNoseHit && isHighSpeed) return CollisionOutcome.noseCrash;
   if (isHighSpeed) return CollisionOutcome.sideCrash;
@@ -254,9 +254,9 @@ void main() {
   });
 
   group('Collisions', () {
-    test('Сектор носа: X > size.x*0.3 в локальных координатах — удар носом', () {
+    test('Сектор носа: X > size.x*noseSectorFactor в локальных координатах — удар носом', () {
       const double sizeX = 300.0;
-      Vector2 localNose = Vector2(sizeX * 0.35, 0);
+      Vector2 localNose = Vector2(sizeX * (Constants.noseSectorFactor + 0.05), 0);
       Vector2 localStern = Vector2(sizeX * 0.2, 0);
 
       CollisionOutcome outcomeNose = resolveCollisionOutcome(
@@ -271,9 +271,9 @@ void main() {
       );
 
       expect(outcomeNose, equals(CollisionOutcome.noseCrash),
-          reason: 'Точка впереди 0.3*length считается носовым сектором при высокой скорости');
+          reason: 'Точка впереди noseSectorFactor*length считается носовым сектором при высокой скорости');
       expect(outcomeStern, equals(CollisionOutcome.sideCrash),
-          reason: 'Точка сзади 0.3*length — удар бортом/кормой при высокой скорости');
+          reason: 'Точка сзади noseSectorFactor*length — удар бортом/кормой при высокой скорости');
     });
 
     test('Критическая скорость: удар бортом > maxSafeImpactSpeed → crash, ниже → soft', () {
@@ -297,16 +297,16 @@ void main() {
           reason: 'Скорость 0.5 м/с ниже порога — обрабатывается как мягкое касание (_handleSoftCollision)');
     });
 
-    test('Граница сектора носа: X = size.x*0.3 не считается носом', () {
+    test('Граница сектора носа: X = size.x*noseSectorFactor не считается носом', () {
       const double sizeX = 300.0;
-      Vector2 onBoundary = Vector2(sizeX * 0.3, 0);
-      Vector2 justBehind = Vector2(sizeX * 0.3 - 0.01, 0);
+      Vector2 onBoundary = Vector2(sizeX * Constants.noseSectorFactor, 0);
+      Vector2 justBehind = Vector2(sizeX * Constants.noseSectorFactor - 0.01, 0);
 
       CollisionOutcome boundary = resolveCollisionOutcome(onBoundary, sizeX, 1.6);
       CollisionOutcome behind = resolveCollisionOutcome(justBehind, sizeX, 1.6);
 
       expect(boundary, equals(CollisionOutcome.sideCrash),
-          reason: 'Строго на границе (x = 0.3*size) по условию не нос');
+          reason: 'Строго на границе (x = noseSectorFactor*size) по условию не нос');
       expect(behind, equals(CollisionOutcome.sideCrash),
           reason: 'Чуть сзади границы — удар бортом/кормой');
     });

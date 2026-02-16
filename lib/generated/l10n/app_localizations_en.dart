@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get gameTitle => 'Yacht Paper Simulator';
+  String get gameTitle => 'Yacht Simulator';
 
   @override
   String get menuStartGame => 'Start Game';
@@ -39,7 +39,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stateGameOver => 'Game Over';
 
   @override
-  String get stateMooredSuccessfully => 'Moored Successfully';
+  String get stateMooredSuccessfully => 'Moored successfully';
 
   @override
   String get settingsSelectLanguage => 'Select Language';
@@ -51,7 +51,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMusic => 'Music';
 
   @override
-  String briefingTitle(String levelName) {
+  String briefingTitle(Object levelName) {
     return 'BRIEFING: $levelName';
   }
 
@@ -62,7 +62,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get windStrength => 'WIND STRENGTH:';
 
   @override
-  String get propellerRightHanded => 'RIGHT-HAND PROPELLER:';
+  String get propellerRightHanded => 'RIGHT-HANDED PROPELLER:';
 
   @override
   String get yes => 'YES';
@@ -74,22 +74,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancel => 'CANCEL';
 
   @override
-  String get startJourney => 'SET SAIL!';
+  String get startJourney => 'START JOURNEY!';
 
   @override
-  String get mooringBow => 'BOW';
+  String get mooringBow => 'BOW LINE';
 
   @override
-  String get mooringStern => 'STERN';
+  String get mooringStern => 'STERN LINE';
 
   @override
-  String get mooringGiveBow => 'MOOR BOW';
+  String get mooringGiveBow => 'GIVE BOW LINE';
 
   @override
-  String get mooringGiveStern => 'MOOR STERN';
+  String get mooringGiveStern => 'GIVE STERN LINE';
 
   @override
-  String get victoryTitle => 'SUCCESSFUL MOORING!';
+  String get victoryTitle => 'MOORED SUCCESSFULLY!';
 
   @override
   String get victoryMessage => 'You have secured the vessel perfectly.';
@@ -101,7 +101,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get victoryNextLevel => 'NEXT LEVEL';
 
   @override
-  String get victoryMessageShort => 'Vessel securely moored.';
+  String get victoryMessageShort => 'The vessel is safely secured in the port.';
 
   @override
   String get gameOverTitle => 'INCIDENT';
@@ -113,7 +113,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameOverMainMenu => 'MAIN MENU';
 
   @override
-  String get levelSelectionTitle => 'SHIP\'S LOG';
+  String get levelSelectionTitle => 'LOGBOOK';
 
   @override
   String get statusWaiting => 'Waiting for command...';
@@ -125,7 +125,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusSternSecured => 'Stern line secured';
 
   @override
-  String get statusLevelRestarted => 'Level Restarted';
+  String get statusLevelRestarted => 'Level restarted';
 
   @override
   String get statusMissionAccomplished => 'MISSION ACCOMPLISHED';
@@ -135,31 +135,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String statusRiverFlow(String speed) {
-    return 'River flow: $speed kts';
+    return 'Current: $speed kn';
   }
 
   @override
-  String get statusHighSeas => 'High seas. Maintain position.';
+  String get statusHighSeas => 'Open sea. Hold position.';
 
   @override
-  String get crashNose => 'CRITICAL: Nose collision!';
+  String get crashNose => 'CRITICAL: Bow collision!';
 
   @override
-  String get crashSide => 'ACCIDENT: Side impact too strong.';
+  String get crashSide => 'CRASH: Excessive side impact.';
 
   @override
-  String get level1Name => 'First Berth';
+  String get level1Name => 'First Pier';
 
   @override
   String get level1Description =>
-      'Quiet marina. Park the yacht in the free slot between other vessels.';
+      'A quiet marina. Park the yacht in the empty slot between other vessels.';
 
   @override
   String get level2Name => 'Seine Current';
 
   @override
   String get level2Description =>
-      'Tricky mooring on the river with strong lateral current.';
+      'Challenging mooring on a river with a strong side current.';
 
   @override
   String get levelSettingsTitle => 'Level Settings';
@@ -171,7 +171,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sectionCurrent => 'CURRENT';
 
   @override
-  String get sectionPropeller => 'PROPELLER';
+  String get sectionPropeller => 'PROPELLER WALK';
 
   @override
   String get labelStrength => 'Strength';

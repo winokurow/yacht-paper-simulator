@@ -1,0 +1,24 @@
+---
+description: Обзор проекта Yacht — стек, структура, соглашения
+alwaysApply: true
+---
+
+# Yacht — симулятор швартовки яхты
+
+## Стек
+- **Flutter** (SDK ^3.10.7), **Flame** (^1.34.0) — 2D-игра.
+- Локализация: `flutter_localizations`, `intl`, ARB в `lib/l10n/`, сгенерированный код в `lib/generated/l10n/`.
+- Тесты: `flutter_test`, `flame_test`, `mocktail`, `golden_toolkit`.
+
+## Структура lib/
+- **lib/core/** — физика (`yacht_physics.dart`), константы (`constants.dart`), события (`game_events.dart`), расчёт марины (`marina_layout.dart`), камера (`camera_math.dart`), тестовый логгер (`test_logger.dart`).
+- **lib/game/** — `YachtMasterGame` (FlameGame), вид игры, меню победы/швартовки, билдер game over.
+- **lib/components/** — игровые объекты: `YachtPlayer`, `Dock`, `Sea`, `MooredYacht`, `Anemometer`, `GridComponent`.
+- **lib/model/** — конфигурация уровней: `LevelConfig`, `BoatPlacement`, `GameLevels`, хелперы локализации уровней.
+- **lib/ui/** — экраны (level selection, level settings), виджеты управления (руль, газ, компас), диалоги (briefing).
+
+## Ключевые соглашения
+- Координаты и размеры в игре: **метры** в конфигах уровней и физике; **пиксели** через `Constants.pixelRatio` (1 м = 25 px) при отрисовке и коллизиях.
+- Углы: в радианах в физике и `LevelConfig` (wind/current direction); в градусах только для начального угла яхты в конфиге и UI.
+- Игровые события (столкновение, победа) идут через абстракцию `GameEvent` и колбэк `onGameEvent` в `YachtPlayer`; обработка — в `YachtMasterGame`, чтобы компоненты не зависели от паузы/оверлеев.
+- Локализованные строки для уровней: функции `levelLocalizedName` и `levelLocalizedDescription` в `level_config.dart` по `level.id`; для новых уровней добавлять ключи в ARB и ветки в switch.

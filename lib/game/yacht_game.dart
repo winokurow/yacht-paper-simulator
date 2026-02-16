@@ -1,10 +1,7 @@
-import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flame/camera.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,6 +10,7 @@ import '../components/moored_yacht.dart';
 import '../components/dock_component.dart';
 import '../components/sea_component.dart';
 import '../core/constants.dart';
+import '../core/game_events.dart';
 import '../core/marina_layout.dart';
 import '../core/camera_math.dart';
 import '../core/test_logger.dart';
@@ -145,9 +143,10 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     _buildEnvironment(config);
 
     yacht.position = config.startPos * Constants.pixelRatio;
+    yacht.onGameEvent = _onPlayerEvent;
     world.add(yacht);
 
-// 2. Начальная камера (без плавности)
+    // Начальная камера (без плавности)
     const double dockY = 0;
     double distancePixels = (yacht.position.y - dockY).abs();
     double initialZoom = CameraMath.targetZoomSmart(distancePixels);
@@ -243,6 +242,12 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   // --- ИГРОВОЙ ЦИКЛ ---
 
+  void _onPlayerEvent(GameEvent event) {
+    if (event is CrashEvent) {
+      onGameOver(event.message);
+    }
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -332,14 +337,14 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       position: pos,
       size: markerSize,
       anchor: Anchor.topCenter,
-      paint: Paint()..color = Colors.green.withOpacity(0.4)..style = PaintingStyle.stroke..strokeWidth = 3,
+      paint: Paint()..color = Colors.green.withValues(alpha: 0.4)..style = PaintingStyle.stroke..strokeWidth = 3,
       priority: -1,
     ));
     world.add(RectangleComponent(
       position: pos,
       size: markerSize,
       anchor: Anchor.topCenter,
-      paint: Paint()..color = Colors.green.withOpacity(0.1),
+      paint: Paint()..color = Colors.green.withValues(alpha: 0.1),
       priority: -2,
     ));
   }

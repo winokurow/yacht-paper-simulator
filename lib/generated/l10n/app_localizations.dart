@@ -103,7 +103,7 @@ abstract class AppLocalizations {
   /// No description provided for @gameTitle.
   ///
   /// In en, this message translates to:
-  /// **'Yacht Paper Simulator'**
+  /// **'Yacht Simulator'**
   String get gameTitle;
 
   /// No description provided for @menuStartGame.
@@ -163,7 +163,7 @@ abstract class AppLocalizations {
   /// No description provided for @stateMooredSuccessfully.
   ///
   /// In en, this message translates to:
-  /// **'Moored Successfully'**
+  /// **'Moored successfully'**
   String get stateMooredSuccessfully;
 
   /// No description provided for @settingsSelectLanguage.
@@ -188,7 +188,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'BRIEFING: {levelName}'**
-  String briefingTitle(String levelName);
+  String briefingTitle(Object levelName);
 
   /// No description provided for @briefingSessionSettings.
   ///
@@ -205,7 +205,7 @@ abstract class AppLocalizations {
   /// No description provided for @propellerRightHanded.
   ///
   /// In en, this message translates to:
-  /// **'RIGHT-HAND PROPELLER:'**
+  /// **'RIGHT-HANDED PROPELLER:'**
   String get propellerRightHanded;
 
   /// No description provided for @yes.
@@ -229,37 +229,37 @@ abstract class AppLocalizations {
   /// No description provided for @startJourney.
   ///
   /// In en, this message translates to:
-  /// **'SET SAIL!'**
+  /// **'START JOURNEY!'**
   String get startJourney;
 
   /// No description provided for @mooringBow.
   ///
   /// In en, this message translates to:
-  /// **'BOW'**
+  /// **'BOW LINE'**
   String get mooringBow;
 
   /// No description provided for @mooringStern.
   ///
   /// In en, this message translates to:
-  /// **'STERN'**
+  /// **'STERN LINE'**
   String get mooringStern;
 
   /// No description provided for @mooringGiveBow.
   ///
   /// In en, this message translates to:
-  /// **'MOOR BOW'**
+  /// **'GIVE BOW LINE'**
   String get mooringGiveBow;
 
   /// No description provided for @mooringGiveStern.
   ///
   /// In en, this message translates to:
-  /// **'MOOR STERN'**
+  /// **'GIVE STERN LINE'**
   String get mooringGiveStern;
 
   /// No description provided for @victoryTitle.
   ///
   /// In en, this message translates to:
-  /// **'SUCCESSFUL MOORING!'**
+  /// **'MOORED SUCCESSFULLY!'**
   String get victoryTitle;
 
   /// No description provided for @victoryMessage.
@@ -283,7 +283,7 @@ abstract class AppLocalizations {
   /// No description provided for @victoryMessageShort.
   ///
   /// In en, this message translates to:
-  /// **'Vessel securely moored.'**
+  /// **'The vessel is safely secured in the port.'**
   String get victoryMessageShort;
 
   /// No description provided for @gameOverTitle.
@@ -307,7 +307,7 @@ abstract class AppLocalizations {
   /// No description provided for @levelSelectionTitle.
   ///
   /// In en, this message translates to:
-  /// **'SHIP\'S LOG'**
+  /// **'LOGBOOK'**
   String get levelSelectionTitle;
 
   /// No description provided for @statusWaiting.
@@ -331,7 +331,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusLevelRestarted.
   ///
   /// In en, this message translates to:
-  /// **'Level Restarted'**
+  /// **'Level restarted'**
   String get statusLevelRestarted;
 
   /// No description provided for @statusMissionAccomplished.
@@ -349,37 +349,37 @@ abstract class AppLocalizations {
   /// No description provided for @statusRiverFlow.
   ///
   /// In en, this message translates to:
-  /// **'River flow: {speed} kts'**
+  /// **'Current: {speed} kn'**
   String statusRiverFlow(String speed);
 
   /// No description provided for @statusHighSeas.
   ///
   /// In en, this message translates to:
-  /// **'High seas. Maintain position.'**
+  /// **'Open sea. Hold position.'**
   String get statusHighSeas;
 
   /// No description provided for @crashNose.
   ///
   /// In en, this message translates to:
-  /// **'CRITICAL: Nose collision!'**
+  /// **'CRITICAL: Bow collision!'**
   String get crashNose;
 
   /// No description provided for @crashSide.
   ///
   /// In en, this message translates to:
-  /// **'ACCIDENT: Side impact too strong.'**
+  /// **'CRASH: Excessive side impact.'**
   String get crashSide;
 
   /// No description provided for @level1Name.
   ///
   /// In en, this message translates to:
-  /// **'First Berth'**
+  /// **'First Pier'**
   String get level1Name;
 
   /// No description provided for @level1Description.
   ///
   /// In en, this message translates to:
-  /// **'Quiet marina. Park the yacht in the free slot between other vessels.'**
+  /// **'A quiet marina. Park the yacht in the empty slot between other vessels.'**
   String get level1Description;
 
   /// No description provided for @level2Name.
@@ -391,7 +391,7 @@ abstract class AppLocalizations {
   /// No description provided for @level2Description.
   ///
   /// In en, this message translates to:
-  /// **'Tricky mooring on the river with strong lateral current.'**
+  /// **'Challenging mooring on a river with a strong side current.'**
   String get level2Description;
 
   /// No description provided for @levelSettingsTitle.
@@ -415,7 +415,7 @@ abstract class AppLocalizations {
   /// No description provided for @sectionPropeller.
   ///
   /// In en, this message translates to:
-  /// **'PROPELLER'**
+  /// **'PROPELLER WALK'**
   String get sectionPropeller;
 
   /// No description provided for @labelStrength.

@@ -15,6 +15,7 @@ import 'package:yacht/components/dock_component.dart';
 import 'package:yacht/components/moored_yacht.dart';
 import 'package:yacht/components/yacht_player.dart';
 import 'package:yacht/core/constants.dart';
+import 'package:yacht/core/game_events.dart';
 import 'package:yacht/game/yacht_game.dart';
 
 // --- Mock для YachtMasterGame (для верификации вызовов) ---
@@ -31,8 +32,10 @@ class TestYachtGame extends YachtMasterGame {
     camera.viewport = FixedResolutionViewport(resolution: Vector2(1280, 720));
     camera.viewfinder.anchor = const Anchor(0.5, 0.65);
     yacht = YachtPlayer(startAngleDegrees: 0);
+    yacht.onGameEvent = (GameEvent e) {
+      if (e is CrashEvent) onGameOver(e.message);
+    };
     world.add(yacht);
-    // Не добавляем Dashboard и не вызываем startLevel
   }
 
   @override

@@ -9,7 +9,7 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
-  String get gameTitle => 'Yacht-Papier-Simulator';
+  String get gameTitle => 'Yacht-Simulator';
 
   @override
   String get menuStartGame => 'Spiel starten';
@@ -24,10 +24,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get menuQuit => 'Beenden';
 
   @override
-  String get controlThrottle => 'Schub';
+  String get controlThrottle => 'Gas';
 
   @override
-  String get controlSteering => 'Steuerung';
+  String get controlSteering => 'Ruder';
 
   @override
   String get controlWind => 'Wind';
@@ -39,7 +39,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get stateGameOver => 'Spiel vorbei';
 
   @override
-  String get stateMooredSuccessfully => 'Erfolgreich vertäut';
+  String get stateMooredSuccessfully => 'Erfolgreich angelegt';
 
   @override
   String get settingsSelectLanguage => 'Sprache wählen';
@@ -51,18 +51,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsMusic => 'Musik';
 
   @override
-  String briefingTitle(String levelName) {
+  String briefingTitle(Object levelName) {
     return 'BRIEFING: $levelName';
   }
 
   @override
-  String get briefingSessionSettings => 'SITZUNGSEINSTELLUNGEN';
+  String get briefingSessionSettings => 'SITZUNGS-EINSTELLUNGEN';
 
   @override
   String get windStrength => 'WINDSTÄRKE:';
 
   @override
-  String get propellerRightHanded => 'RECHTSGÄNGIGER PROPELLER:';
+  String get propellerRightHanded => 'RECHTSDREHENDER PROPELLER:';
 
   @override
   String get yes => 'JA';
@@ -74,37 +74,38 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cancel => 'ABBRECHEN';
 
   @override
-  String get startJourney => 'IN SEE!';
+  String get startJourney => 'LOS GEHT\'S!';
 
   @override
-  String get mooringBow => 'BUG';
+  String get mooringBow => 'BUGLEINE';
 
   @override
-  String get mooringStern => 'HECK';
+  String get mooringStern => 'HECKLEINE';
 
   @override
-  String get mooringGiveBow => 'BUG VERTÄUEN';
+  String get mooringGiveBow => 'BUGLEINE AUSGEBEN';
 
   @override
-  String get mooringGiveStern => 'HECK VERTÄUEN';
+  String get mooringGiveStern => 'HECKLEINE AUSGEBEN';
 
   @override
-  String get victoryTitle => 'ERFOLGREICH VERTÄUT!';
+  String get victoryTitle => 'ERFOLGREICH ANGELEGT!';
 
   @override
   String get victoryMessage => 'Sie haben das Schiff perfekt gesichert.';
 
   @override
-  String get victoryPlayAgain => 'NOCHMAL SPIELEN';
+  String get victoryPlayAgain => 'WIEDERHOLEN';
 
   @override
   String get victoryNextLevel => 'NÄCHSTES LEVEL';
 
   @override
-  String get victoryMessageShort => 'Schiff sicher im Hafen.';
+  String get victoryMessageShort =>
+      'Das Schiff ist sicher im Hafen festgemacht.';
 
   @override
-  String get gameOverTitle => 'VORFALL';
+  String get gameOverTitle => 'KOLLISION';
 
   @override
   String get gameOverRetry => 'WIEDERHOLEN';
@@ -113,16 +114,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get gameOverMainMenu => 'HAUPTMENÜ';
 
   @override
-  String get levelSelectionTitle => 'SCHIFFSLOGbuch';
+  String get levelSelectionTitle => 'LOGBUCH';
 
   @override
-  String get statusWaiting => 'Warte auf Befehl...';
+  String get statusWaiting => 'Warten auf Befehle...';
 
   @override
-  String get statusBowSecured => 'Bugleine befestigt';
+  String get statusBowSecured => 'Bugleine fest';
 
   @override
-  String get statusSternSecured => 'Heckleine befestigt';
+  String get statusSternSecured => 'Heckleine fest';
 
   @override
   String get statusLevelRestarted => 'Level neu gestartet';
@@ -131,35 +132,35 @@ class AppLocalizationsDe extends AppLocalizations {
   String get statusMissionAccomplished => 'MISSION ERFÜLLT';
 
   @override
-  String get statusFailed => 'GESCHEITERT';
+  String get statusFailed => 'FEHLGESCHLAGEN';
 
   @override
   String statusRiverFlow(String speed) {
-    return 'Flussströmung: $speed kn';
+    return 'Strömung: $speed kn';
   }
 
   @override
-  String get statusHighSeas => 'Hohe See. Position halten.';
+  String get statusHighSeas => 'Offene See. Position halten.';
 
   @override
-  String get crashNose => 'KRITISCH: Bugkollision!';
+  String get crashNose => 'KRITISCH: Bug-Kollision!';
 
   @override
-  String get crashSide => 'UNFALL: Zu starke Seitenberührung.';
+  String get crashSide => 'UNFALL: Zu harter Aufprall an der Seite.';
 
   @override
-  String get level1Name => 'Erste Liegestelle';
+  String get level1Name => 'Erster Anleger';
 
   @override
   String get level1Description =>
-      'Ruhiger Hafen. Parken Sie die Yacht in der freien Lücke zwischen anderen Booten.';
+      'Ruhige Marina. Parken Sie die Yacht in der freien Lücke zwischen anderen Schiffen.';
 
   @override
-  String get level2Name => 'Seine-Strömung';
+  String get level2Name => 'Strömung der Seine';
 
   @override
   String get level2Description =>
-      'Anspruchsvolles Anlegen am Fluss mit starker Querströmung.';
+      'Schwieriges Anlegen an einem Fluss mit starker Seitenströmung.';
 
   @override
   String get levelSettingsTitle => 'Level-Einstellungen';
@@ -171,7 +172,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sectionCurrent => 'STRÖMUNG';
 
   @override
-  String get sectionPropeller => 'PROPELLER';
+  String get sectionPropeller => 'RADEFFEKT';
 
   @override
   String get labelStrength => 'Stärke';

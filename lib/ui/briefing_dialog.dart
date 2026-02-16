@@ -14,7 +14,7 @@ class BriefingDialog extends StatefulWidget {
 }
 
 class _BriefingDialogState extends State<BriefingDialog> {
-  double windMult = 1.0;
+  double windMult = 1;
   bool isRightHanded = true;
 
   @override

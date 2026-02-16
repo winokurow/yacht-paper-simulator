@@ -51,7 +51,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsMusic => 'Музыка';
 
   @override
-  String briefingTitle(String levelName) {
+  String briefingTitle(Object levelName) {
     return 'БРИФИНГ: $levelName';
   }
 

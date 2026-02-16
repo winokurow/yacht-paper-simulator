@@ -1,0 +1,28 @@
+---
+description: Соглашения Dart/Flame для lib/
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# Код в lib/
+
+## Физика и константы
+- **YachtPhysics** — только статические чистые функции, без состояния. Не зависят от Flame/Game.
+- Все физические константы и коэффициенты — в **Constants** (`lib/core/constants.dart`). Не дублировать магические числа в компонентах.
+- Единицы: скорость в м/с, углы в радианах в расчётах, силы в Н, моменты в Н·м. Пиксели только при отрисовке/коллизиях через `Constants.pixelRatio`.
+
+## Компоненты Flame
+- Компоненты с коллизиями: `CollisionCallbacks`, полигоны/хитбоксы в `onLoad`.
+- Доступ к игре: `HasGameReference<YachtMasterGame>`, обращение к состоянию уровня/ветра через `game.activeWindSpeed` и т.д.
+- Вместо прямого вызова паузы или UI из компонента — вызывать `onGameEvent?(GameEvent)`; обработку делать в `YachtMasterGame`.
+
+## Локализация
+- Строки для пользователя — через `AppLocalizations` (из `lib/generated/l10n/`). В виджетах — из контекста; в игре/компонентах без BuildContext — `game.l10n` (устанавливается из GameView).
+- Названия и описания уровней: добавлять ключи в `app_en.arb` (и другие locale), в `level_config.dart` — ветки в `levelLocalizedName` / `levelLocalizedDescription` по `level.id`.
+
+## Модель уровней
+- **LevelConfig** — неизменяемый: `id`, `name`, `description`, `envType`, `startPos` (Vector2 в метрах), `startAngle` (градусы для начальной ориентации), `marinaLayout`, параметры ветра/течения в радианах.
+- **BoatPlacement**: `type` — `'boat'` или `'player_slot'`; размеры в метрах (`width`, `length`); для лодок — `sprite`, `isNoseRight`.
+
+## Импорты
+- Использовать `package:yacht/...` в тестах; в lib — относительные импорты между файлами проекта. Flame/Flutter — из пакетов.

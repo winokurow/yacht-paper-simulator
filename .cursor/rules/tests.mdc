@@ -1,0 +1,25 @@
+---
+description: Правила тестов — flame_test, mocktail, DI
+globs: test/**/*.dart
+alwaysApply: false
+---
+
+# Тесты
+
+## Модульные тесты физики
+- Файл: `test/yacht_physics_test.dart`. Тестируют **YachtPhysics** (статические методы) и **YachtDynamics** без запуска Flame/Game.
+- Использовать `mocktail` для колбэков (например `MockStopCallback` для `YachtPhysics.stop`). В `setUpAll` регистрировать fallback для типов: `registerFallbackValue(Vector2.zero())`.
+- Проверять граничные случаи: нулевой throttle, нулевая скорость, направление сил (drag противоположен скорости), доминирование v² в сопротивлении.
+
+## Компонентные/игровые тесты
+- Использовать **flame_test** (`FlameTester`, `setUpFlameTest()`). Загрузка спрайтов подменять через переопределение `loadSprite` в тестовой игре или mock.
+- Тестовая игра наследует `YachtMasterGame`, в `onLoad` минимальная инициализация (камера, мир, игрок с `onGameEvent`). Методы, вызываемые из компонентов (`onGameOver`, `showMooringButtons`, `hideMooringButtons`), делегировать в **MockYachtMasterGame** (mocktail) для верификации вызовов.
+- Фейковый спрайт: `generateImage` из flame_test или локальная функция `createFakeSprite()`.
+
+## DI и изоляция
+- Физика не должна зависеть от YachtGame. Для тестов игрового цикла: внедрять `YachtDynamics` через конструктор игры (если добавлен параметр); обрабатывать события через подмену `yacht.onGameEvent`.
+- Документация по тестированию и DI: `docs/TESTING_AND_DI.md`.
+
+## Запуск
+- Физика: `flutter test test/yacht_physics_test.dart`
+- Остальные тесты: `flutter test test/` или конкретный файл.

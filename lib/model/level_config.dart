@@ -65,7 +65,7 @@ class LevelConfig {
     this.startAngle = -90,
     this.marinaLayout = const [],
     this.targetSlotIndex = 0,
-    this.defaultWindSpeed = 2.0,
+    this.defaultWindSpeed = 5.0,
     this.defaultWindDirection = 0.0,
     this.defaultCurrentSpeed = 0.0,
     this.currentDirection = 0.0,
