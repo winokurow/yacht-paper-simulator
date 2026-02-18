@@ -49,7 +49,7 @@ class GameView extends StatelessWidget {
   }
 }
 
-/// Оверлей кнопок швартовки (нос/корма).
+/// Оверлей кнопок швартовки: два столбца (кормовые | носовые), по два ряда.
 class MooringOverlay extends StatelessWidget {
   final YachtMasterGame game;
   const MooringOverlay({super.key, required this.game});
@@ -57,19 +57,46 @@ class MooringOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final yacht = game.yacht;
+
+    Widget? button(bool active, String labelRelease, String labelSecure, bool isSecured, VoidCallback release, VoidCallback secure) {
+      if (!active) return null;
+      final label = isSecured ? labelRelease : labelSecure;
+      final onPressed = isSecured ? release : secure;
+      return _mooringButton(label, onPressed);
+    }
+
+    final sternCol = <Widget?>[
+      button(game.sternButtonActive, l10n.mooringGiveStern, l10n.mooringStern, yacht.sternMooredTo != null, game.releaseStern, game.moerStern),
+      button(game.backSpringButtonActive, l10n.mooringGiveBackSpring, l10n.mooringBackSpring, yacht.backSpringMooredTo != null, game.releaseBackSpring, game.moerBackSpring),
+    ].whereType<Widget>().toList();
+    final bowCol = <Widget?>[
+      button(game.bowButtonActive, l10n.mooringGiveBow, l10n.mooringBow, yacht.bowMooredTo != null, game.releaseBow, game.moerBow),
+      button(game.forwardSpringButtonActive, l10n.mooringGiveForwardSpring, l10n.mooringForwardSpring, yacht.forwardSpringMooredTo != null, game.releaseForwardSpring, game.moerForwardSpring),
+    ].whereType<Widget>().toList();
+
     return Positioned(
-      bottom: 150,
+      bottom: 24,
       left: 0,
       right: 0,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (game.bowButtonActive)
-            _mooringButton(l10n.mooringGiveBow, game.moerBow),
-          const SizedBox(width: 20),
-          if (game.sternButtonActive)
-            _mooringButton(l10n.mooringGiveStern, game.moerStern),
-        ],
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (sternCol.isNotEmpty)
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: sternCol.map((b) => Padding(padding: const EdgeInsets.only(bottom: 8), child: b)).toList(),
+              ),
+            if (sternCol.isNotEmpty && bowCol.isNotEmpty) const SizedBox(width: 24),
+            if (bowCol.isNotEmpty)
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: bowCol.map((b) => Padding(padding: const EdgeInsets.only(bottom: 8), child: b)).toList(),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -79,11 +106,11 @@ class MooringOverlay extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFE0C9A6),
         foregroundColor: Colors.brown,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         side: const BorderSide(color: Colors.brown, width: 2),
       ),
       onPressed: onPressed,
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
     );
   }
 }
@@ -123,13 +150,14 @@ class VictoryOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final bool isDepartLevel = game.currentLevel?.startWithAllLinesSecured == true;
     return Container(
       color: Colors.black26,
       child: Center(
         child: paperCard(
           context: context,
-          title: l10n.victoryTitle,
-          message: l10n.victoryMessageShort,
+          title: isDepartLevel ? l10n.victoryTitleDeparted : l10n.victoryTitle,
+          message: isDepartLevel ? l10n.victoryMessageShortDeparted : l10n.victoryMessageShort,
           buttonLabel: l10n.victoryNextLevel,
           exitButtonLabel: l10n.gameOverMainMenu,
           onPressed: () => Navigator.of(context).pushReplacement(

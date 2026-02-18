@@ -50,7 +50,8 @@ class TestYachtGame extends YachtMasterGame {
   void onGameOver(String reason) => _mock.onGameOver(reason);
 
   @override
-  void showMooringButtons(bool bow, bool stern) => _mock.showMooringButtons(bow, stern);
+  void showMooringButtons(bool bow, bool stern, [bool forwardSpring = false, bool backSpring = false]) =>
+      _mock.showMooringButtons(bow, stern, forwardSpring, backSpring);
 
   @override
   void hideMooringButtons() => _mock.hideMooringButtons();

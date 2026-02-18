@@ -24,31 +24,45 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   Vector2 velocity = Vector2.zero();
   double targetThrottle = 0.0;
 
-  // Состояние швартовки
+  // Состояние швартовки (2 или 4 линии в зависимости от уровня)
   bool canMoerBow = false;
   bool canMoerStern = false;
+  bool canMoerForwardSpring = false;
+  bool canMoerBackSpring = false;
 
   Vector2? bowMooredTo;
   Vector2? sternMooredTo;
+  Vector2? forwardSpringMooredTo;
+  Vector2? backSpringMooredTo;
   double? bowRopeRestLength;
   double? sternRopeRestLength;
+  double? forwardSpringRestLength;
+  double? backSpringRestLength;
 
   /// Уведомления о столкновениях/авариях — обрабатываются в [YachtMasterGame].
   void Function(GameEvent)? onGameEvent;
 
   late final YachtDynamics _dynamics;
+  /// Точка крепления носового швартового (и носового шпринга) — борт ближайший к причалу.
   Vector2 get _bowRopeLocal => Vector2(
         size.x / 2 - Constants.ropeBowPositionFactor * size.x,
         size.y * Constants.ropeOffsetFromBoard,
       );
+  /// Точка крепления кормового швартового (и кормового шпринга) — тот же борт, что и нос (ropeOffsetFromBoard).
   Vector2 get _sternRopeLocal => Vector2(
         size.x / 2 - Constants.ropeSternPositionFactor * size.x,
-        -size.y * Constants.ropeOffsetFromBoard,
+        size.y * Constants.ropeOffsetFromBoard,
       );
+  /// Носовой шпринг крепится к той же точке, что и носовой швартовый.
+  Vector2 get _forwardSpringRopeLocal => _bowRopeLocal;
+  /// Кормовой шпринг крепится к той же точке, что и кормовой швартовый.
+  Vector2 get _backSpringRopeLocal => _sternRopeLocal;
 
-  // Геттеры позиций
+  // Геттеры позиций креплений
   Vector2 get bowWorldPosition => localToParent(_bowRopeLocal);
   Vector2 get sternWorldPosition => localToParent(_sternRopeLocal);
+  Vector2 get forwardSpringWorldPosition => localToParent(_forwardSpringRopeLocal);
+  Vector2 get backSpringWorldPosition => localToParent(_backSpringRopeLocal);
   Vector2 get bowRightWorld => localToParent(Vector2(size.x / 2, size.y / 2));
   Vector2 get bowLeftWorld  => localToParent(Vector2(size.x / 2, -size.y / 2));
   Vector2 get sternRightWorld => localToParent(Vector2(-size.x / 2, size.y / 2));
@@ -65,6 +79,9 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   double _lastDt = 1 / 60.0;
   /// Время с последнего всплеска (для ограничения частоты частиц).
   double _lastSplashTime = 0.0;
+  /// Контакт с причалом: для подавления prop walk и проекции скорости по нормали (ось вращения в точке контакта).
+  bool _isTouchingDock = false;
+  Vector2? _lastDockNormal;
   /// Эффективная тяга (сглаженная) для инерции двигателя — хранится между кадрами.
   double _effectiveThrust = 0.0;
 
@@ -102,7 +119,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
       windDirection: game.activeWindDirection,
       currentSpeed: game.activeCurrentSpeed,
       currentDirection: game.activeCurrentDirection,
-      distanceToDockPixels: _distanceToDockPixels(),
+      distanceToDockPixels: _isTouchingDock ? 0 : _distanceToDockPixels(),
+      isTouchingDock: _isTouchingDock,
     );
     final state = YachtMotionState(
       position: position,
@@ -123,11 +141,24 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     _effectiveThrust = next.effectiveThrust;
     _currentRudderAngle = next.currentRudderAngle;
 
+    if (_isTouchingDock && _lastDockNormal != null) {
+      final n = _lastDockNormal!;
+      final vn = velocity.dot(n);
+      if (vn < 0) velocity -= n * vn;
+    }
+
     if (bowMooredTo != null && bowRopeRestLength != null) {
       _applyMooringPhysics(dt, bowMooredTo, _bowRopeLocal, bowRopeRestLength);
     }
     if (sternMooredTo != null && sternRopeRestLength != null) {
       _applyMooringPhysics(dt, sternMooredTo, _sternRopeLocal, sternRopeRestLength);
+    }
+    final Vector2 forwardDir = Vector2(math.cos(angle), math.sin(angle));
+    if (forwardSpringMooredTo != null && forwardSpringRestLength != null) {
+      _applySpringLongitudinal(dt, forwardSpringMooredTo!, _forwardSpringRopeLocal, forwardSpringRestLength!, forwardDir);
+    }
+    if (backSpringMooredTo != null && backSpringRestLength != null) {
+      _applySpringLongitudinal(dt, backSpringMooredTo!, _backSpringRopeLocal, backSpringRestLength!, forwardDir);
     }
   }
 
@@ -136,7 +167,9 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     super.onCollision(intersectionPoints, other);
     if (intersectionPoints.isEmpty) return;
     if (other is Dock) {
+      _isTouchingDock = true;
       position -= velocity * (_lastDt * Constants.pixelRatio);
+      _lastDockNormal = _depenetrateFromDock(other);
       YachtPhysics.stop((v, a) {
         velocity = v;
         angularVelocity = a;
@@ -154,7 +187,44 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     bool isHighSpeed = velocity.length > Constants.maxSafeImpactSpeed;
     if (isNoseHit && isHighSpeed) return;
     if (isHighSpeed) return;
-    _handleSoftCollision(worldCollisionPoint, other, applyVelocityChange: false);
+    if (other is! Dock) _handleSoftCollision(worldCollisionPoint, other, applyVelocityChange: false);
+  }
+
+  @override
+  void onCollisionEnd(PositionComponent other) {
+    super.onCollisionEnd(other);
+    if (other is Dock) {
+      _isTouchingDock = false;
+      _lastDockNormal = null;
+    }
+  }
+
+  /// Депенетрация от причала: сдвиг яхты по нормали столкновения так, чтобы хитбоксы не пересекались.
+  /// Использует AABB яхты и прямоугольник причала. Возвращает нормаль (от причала к яхте) для проекции скорости.
+  Vector2? _depenetrateFromDock(Dock dock) {
+    final yl = position.x - size.x / 2;
+    final yr = position.x + size.x / 2;
+    final yt = position.y - size.y / 2;
+    final yb = position.y + size.y / 2;
+    final dl = dock.position.x;
+    final dt = dock.position.y;
+    final dr = dock.position.x + dock.size.x;
+    final db = dock.position.y + dock.size.y;
+    final overlapL = yr - dl;
+    final overlapR = dr - yl;
+    final overlapT = yb - dt;
+    final overlapB = db - yt;
+    if (overlapL <= 0 || overlapR <= 0 || overlapT <= 0 || overlapB <= 0) return null;
+    final depthX = overlapL < overlapR ? overlapL : overlapR;
+    final depthY = overlapT < overlapB ? overlapT : overlapB;
+    Vector2 push;
+    if (depthX <= depthY) {
+      push = overlapL < overlapR ? Vector2(-depthX, 0) : Vector2(depthX, 0);
+    } else {
+      push = overlapT < overlapB ? Vector2(0, -depthY) : Vector2(0, depthY);
+    }
+    position += push;
+    return push.normalized();
   }
 
   @override
@@ -268,6 +338,22 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     velocity *= damping;
   }
 
+  /// Шпринг: натяжение только вдоль продольной оси (ограничивает движение вперёд/назад).
+  void _applySpringLongitudinal(double dt, Vector2 bollardWorld, Vector2 anchorLocal, double restLength, Vector2 forwardDir) {
+    Vector2 anchorWorld = localToParent(anchorLocal);
+    Vector2 ropeVector = bollardWorld - anchorWorld;
+    double currentLength = ropeVector.length;
+    if (currentLength <= restLength) return;
+
+    double strain = currentLength - restLength;
+    Vector2 dir = ropeVector.normalized();
+    var (accel, damping) = YachtPhysics.mooringSpringLongitudinal(
+      dir, strain, restLength, forwardDir, Constants.yachtMass, dt,
+    );
+    velocity += accel;
+    velocity *= damping;
+  }
+
   /// Минимальная дистанция от центра яхты до прямоугольника причала (в пикселях).
   double _distanceToDockPixels() {
     if (game.dock == null) return double.infinity;
@@ -286,26 +372,42 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     final d = game.dock!;
     if (d.bollardXPositions.isEmpty) return;
 
-    final double bollardY = d.position.y + d.size.y;
+    final double bollardY = d.position.y + (d.size.y * Dock.bollardYFactor);
     final List<Vector2> bollards = d.bollardXPositions.map((x) => Vector2(d.position.x + x, bollardY)).toList();
     if (bollards.isEmpty) return;
 
-    Vector2 mBowR = localToParent(Vector2(size.x * 0.4, size.y * 0.35));
-    Vector2 mBowL = localToParent(Vector2(size.x * 0.4, -size.y * 0.35));
-    Vector2 mSternR = localToParent(Vector2(-size.x * 0.4, size.y * 0.35));
-    Vector2 mSternL = localToParent(Vector2(-size.x * 0.4, -size.y * 0.35));
-
-    double dBow = bollards.map((b) => math.min(mBowR.distanceTo(b), mBowL.distanceTo(b))).reduce(math.min);
-    double dStern = bollards.map((b) => math.min(mSternR.distanceTo(b), mSternL.distanceTo(b))).reduce(math.min);
-
+    final int lineCount = game.currentLevel?.mooringLinesCount ?? 2;
     final threshold = Constants.mooringBollardProximityPixels;
-    bool speedOk = velocity.length < Constants.mooringSpeedThresholdPixels;
+    final bool speedOk = velocity.length < Constants.mooringSpeedThresholdPixels;
 
-    canMoerBow = dBow < threshold && speedOk && bowMooredTo == null;
-    canMoerStern = dStern < threshold && speedOk && sternMooredTo == null;
+    if (lineCount >= 4 && bollards.length >= 4) {
+      Vector2 mBow = localToParent(_bowRopeLocal);
+      Vector2 mFwdSpring = localToParent(_forwardSpringRopeLocal);
+      Vector2 mBackSpring = localToParent(_backSpringRopeLocal);
+      Vector2 mStern = localToParent(_sternRopeLocal);
+      canMoerBow = mBow.distanceTo(bollards[0]) < threshold && speedOk && bowMooredTo == null;
+      canMoerForwardSpring = mFwdSpring.distanceTo(bollards[1]) < threshold && speedOk && forwardSpringMooredTo == null;
+      canMoerBackSpring = mBackSpring.distanceTo(bollards[2]) < threshold && speedOk && backSpringMooredTo == null;
+      canMoerStern = mStern.distanceTo(bollards[3]) < threshold && speedOk && sternMooredTo == null;
+    } else {
+      Vector2 mBowR = localToParent(Vector2(size.x * 0.4, size.y * 0.35));
+      Vector2 mBowL = localToParent(Vector2(size.x * 0.4, -size.y * 0.35));
+      Vector2 mSternR = localToParent(Vector2(-size.x * 0.4, size.y * 0.35));
+      Vector2 mSternL = localToParent(Vector2(-size.x * 0.4, -size.y * 0.35));
+      double dBow = bollards.map((b) => math.min(mBowR.distanceTo(b), mBowL.distanceTo(b))).reduce(math.min);
+      double dStern = bollards.map((b) => math.min(mSternR.distanceTo(b), mSternL.distanceTo(b))).reduce(math.min);
+      canMoerBow = dBow < threshold && speedOk && bowMooredTo == null;
+      canMoerStern = dStern < threshold && speedOk && sternMooredTo == null;
+      canMoerForwardSpring = false;
+      canMoerBackSpring = false;
+    }
 
-    if (canMoerBow || canMoerStern) {
-      game.showMooringButtons(canMoerBow, canMoerStern);
+    final bool showBow = canMoerBow || bowMooredTo != null;
+    final bool showStern = canMoerStern || sternMooredTo != null;
+    final bool showFwdSpring = canMoerForwardSpring || forwardSpringMooredTo != null;
+    final bool showBackSpring = canMoerBackSpring || backSpringMooredTo != null;
+    if (showBow || showStern || showFwdSpring || showBackSpring) {
+      game.showMooringButtons(showBow, showStern, showFwdSpring, showBackSpring);
     } else {
       game.hideMooringButtons();
     }
@@ -337,8 +439,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     _effectiveThrust = 0.0;
     _currentRudderAngle = 0.0;
     targetRudderAngle = 0.0;
-    bowMooredTo = sternMooredTo = null;
-    bowRopeRestLength = sternRopeRestLength = null;
+    bowMooredTo = sternMooredTo = forwardSpringMooredTo = backSpringMooredTo = null;
+    bowRopeRestLength = sternRopeRestLength = forwardSpringRestLength = backSpringRestLength = null;
   }
 
   @override
@@ -369,10 +471,8 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     // Рисуем спрайт поверх тени обычной кистью
     yachtSprite!.renderRect(canvas, drawRect);
 
-    // 3. ВОЗВРАЩАЕМ РУЛЬ (Отрисовка пера руля)
+    // 3. РУЛЬ (перо руля). Швартовые и шпринги рисует [RopeRenderer] в мировых координатах.
     _renderRudder(canvas);
-    if (bowMooredTo != null) _drawRope(canvas, bowMooredTo!, _bowRopeLocal);
-    if (sternMooredTo != null) _drawRope(canvas, sternMooredTo!, _sternRopeLocal);
   }
 
   // Метод для отрисовки пера руля
@@ -394,23 +494,4 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     canvas.restore();
   }
 
-  void _drawRope(Canvas canvas, Vector2? bollardWorld, Vector2? anchorLocal) {
-    if (bollardWorld == null || anchorLocal == null) return;
-    Vector2 bLocal = parentToLocal(bollardWorld);
-    double dist = (bLocal - anchorLocal).length;
-    final paint = Paint()..color = const Color(0xFFEFEBE9)..strokeWidth = 1.5..style = PaintingStyle.stroke;
-    final sagThreshold = Constants.ropeSagDistanceFactor * Constants.pixelRatio * 0.9;
-    if (dist < sagThreshold) {
-      final path = Path()..moveTo(anchorLocal.x, anchorLocal.y);
-      path.quadraticBezierTo(
-        (anchorLocal.x + bLocal.x) / 2,
-        (anchorLocal.y + bLocal.y) / 2 + (Constants.ropeSagDistanceFactor * Constants.pixelRatio - dist) * Constants.ropeSagFactor,
-        bLocal.x,
-        bLocal.y,
-      );
-      canvas.drawPath(path, paint);
-    } else {
-      canvas.drawLine(anchorLocal.toOffset(), bLocal.toOffset(), paint);
-    }
-  }
 }

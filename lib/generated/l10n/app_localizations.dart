@@ -235,26 +235,50 @@ abstract class AppLocalizations {
   /// No description provided for @mooringBow.
   ///
   /// In en, this message translates to:
-  /// **'BOW LINE'**
+  /// **'bow line'**
   String get mooringBow;
 
   /// No description provided for @mooringStern.
   ///
   /// In en, this message translates to:
-  /// **'STERN LINE'**
+  /// **'stern line'**
   String get mooringStern;
 
   /// No description provided for @mooringGiveBow.
   ///
   /// In en, this message translates to:
-  /// **'GIVE BOW LINE'**
+  /// **'Give bow line'**
   String get mooringGiveBow;
 
   /// No description provided for @mooringGiveStern.
   ///
   /// In en, this message translates to:
-  /// **'GIVE STERN LINE'**
+  /// **'Give stern line'**
   String get mooringGiveStern;
+
+  /// No description provided for @mooringForwardSpring.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward Spring'**
+  String get mooringForwardSpring;
+
+  /// No description provided for @mooringBackSpring.
+  ///
+  /// In en, this message translates to:
+  /// **'Back Spring'**
+  String get mooringBackSpring;
+
+  /// No description provided for @mooringGiveForwardSpring.
+  ///
+  /// In en, this message translates to:
+  /// **'Give Forward Spring'**
+  String get mooringGiveForwardSpring;
+
+  /// No description provided for @mooringGiveBackSpring.
+  ///
+  /// In en, this message translates to:
+  /// **'Give Back Spring'**
+  String get mooringGiveBackSpring;
 
   /// No description provided for @victoryTitle.
   ///
@@ -285,6 +309,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The vessel is safely secured in the port.'**
   String get victoryMessageShort;
+
+  /// No description provided for @victoryTitleDeparted.
+  ///
+  /// In en, this message translates to:
+  /// **'SUCCESSFUL DEPARTURE!'**
+  String get victoryTitleDeparted;
+
+  /// No description provided for @victoryMessageShortDeparted.
+  ///
+  /// In en, this message translates to:
+  /// **'You have left the mooring zone.'**
+  String get victoryMessageShortDeparted;
 
   /// No description provided for @gameOverTitle.
   ///
@@ -327,6 +363,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stern line secured'**
   String get statusSternSecured;
+
+  /// No description provided for @statusBowReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Bow line released'**
+  String get statusBowReleased;
+
+  /// No description provided for @statusSternReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Stern line released'**
+  String get statusSternReleased;
+
+  /// No description provided for @statusForwardSpringSecured.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward spring secured'**
+  String get statusForwardSpringSecured;
+
+  /// No description provided for @statusBackSpringSecured.
+  ///
+  /// In en, this message translates to:
+  /// **'Back spring secured'**
+  String get statusBackSpringSecured;
+
+  /// No description provided for @statusForwardSpringReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward spring released'**
+  String get statusForwardSpringReleased;
+
+  /// No description provided for @statusBackSpringReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Back spring released'**
+  String get statusBackSpringReleased;
+
+  /// No description provided for @statusAllLinesSecured.
+  ///
+  /// In en, this message translates to:
+  /// **'All lines secured. Release to depart.'**
+  String get statusAllLinesSecured;
 
   /// No description provided for @statusLevelRestarted.
   ///
@@ -385,13 +463,13 @@ abstract class AppLocalizations {
   /// No description provided for @level2Name.
   ///
   /// In en, this message translates to:
-  /// **'Seine Current'**
+  /// **'Departure Alongside'**
   String get level2Name;
 
   /// No description provided for @level2Description.
   ///
   /// In en, this message translates to:
-  /// **'Challenging mooring on a river with a strong side current.'**
+  /// **'Yacht is moored alongside with 4 lines.'**
   String get level2Description;
 
   /// No description provided for @levelSettingsTitle.

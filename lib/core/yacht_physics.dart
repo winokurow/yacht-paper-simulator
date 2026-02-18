@@ -73,8 +73,37 @@ class YachtPhysics {
     double dt,
   ) {
     if (strainPixels <= 0) return (Vector2.zero(), 1.0);
-    double tension = strainPixels * Constants.mooringTensionLinear + (strainPixels * strainPixels * Constants.mooringTensionQuadratic);
+    double tension = _mooringTensionMagnitude(strainPixels);
     Vector2 accel = ropeDirectionNormalized * (tension / yachtMass) * dt * Constants.mooringAccelScale;
+    double damping = Constants.mooringDampingLight;
+    if (restLengthPixels > 0 && strainPixels > restLengthPixels * Constants.mooringStrainRatioForStrongDamping) {
+      damping = Constants.mooringDampingStrong;
+    }
+    return (accel, damping);
+  }
+
+  /// Величина натяжения по деформации (пиксели), ограниченная [Constants.maxLineTensionPixels].
+  static double _mooringTensionMagnitude(double strainPixels) {
+    double tension = strainPixels * Constants.mooringTensionLinear +
+        (strainPixels * strainPixels * Constants.mooringTensionQuadratic);
+    return tension.clamp(0.0, Constants.maxLineTensionPixels);
+  }
+
+  /// Натяжение шпринга: только продольная компонента (вдоль [forwardDir]).
+  /// Ограничивает движение вперёд/назад, позволяет яхте разворачиваться от причала.
+  static (Vector2 acceleration, double velocityDamping) mooringSpringLongitudinal(
+    Vector2 ropeDirectionNormalized,
+    double strainPixels,
+    double restLengthPixels,
+    Vector2 forwardDir,
+    double yachtMass,
+    double dt,
+  ) {
+    if (strainPixels <= 0) return (Vector2.zero(), 1.0);
+    double tension = _mooringTensionMagnitude(strainPixels) * Constants.mooringSpringElasticity;
+    double longitudinalComponent = ropeDirectionNormalized.dot(forwardDir);
+    Vector2 accelDir = forwardDir * longitudinalComponent.sign;
+    Vector2 accel = accelDir * (tension / yachtMass) * dt * Constants.mooringAccelScale;
     double damping = Constants.mooringDampingLight;
     if (restLengthPixels > 0 && strainPixels > restLengthPixels * Constants.mooringStrainRatioForStrongDamping) {
       damping = Constants.mooringDampingStrong;
@@ -146,6 +175,7 @@ class YachtEnvironment {
   final double currentSpeed;
   final double currentDirection;
   final double distanceToDockPixels;
+  final bool isTouchingDock;
 
   const YachtEnvironment({
     this.windSpeed = 0,
@@ -153,6 +183,7 @@ class YachtEnvironment {
     this.currentSpeed = 0,
     this.currentDirection = 0,
     this.distanceToDockPixels = double.infinity,
+    this.isTouchingDock = false,
   });
 }
 
@@ -221,7 +252,8 @@ class YachtDynamics {
 
     // 6. Вращение: момент руля (с учётом радиуса разворота) + prop walk; угловое трение
     double propWalk = YachtPhysics.propWalkTorque(throttle, speedMeters);
-    if (throttle < 0 && env.distanceToDockPixels < Constants.propWalkSuppressDistanceToDockPixels) {
+    if (env.isTouchingDock ||
+        (throttle < 0 && env.distanceToDockPixels < Constants.propWalkSuppressDistanceToDockPixels)) {
       propWalk = 0;
     }
     double totalTorque = YachtPhysics.rudderTorque(rudderAngle, speedMeters, throttle) + propWalk;

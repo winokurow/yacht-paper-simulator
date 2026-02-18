@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../components/yacht_player.dart';
 import '../components/moored_yacht.dart';
 import '../components/dock_component.dart';
+import '../components/rope_renderer.dart';
 import '../components/sea_component.dart';
 import '../core/constants.dart';
 import '../core/game_events.dart';
@@ -38,10 +39,15 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   bool bowButtonActive = false;
   bool sternButtonActive = false;
+  bool forwardSpringButtonActive = false;
+  bool backSpringButtonActive = false;
   bool _victoryTriggered = false;
 
   List<double> playerBollards = [];
   Rect get playArea => Rect.fromLTWH(0, 0, Constants.playAreaWidth, Constants.playAreaHeight);
+
+  /// Прямоугольник зелёной зоны (слот причала) в мировых координатах; для уровня 2 — победа при выходе из неё.
+  Rect? _greenZoneRect;
 
   // В начало класса YachtMasterGame
   double _lastWindMult = 1.0;
@@ -146,6 +152,12 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     yacht.onGameEvent = _onPlayerEvent;
     world.add(yacht);
 
+    if (config.startWithAllLinesSecured && dock != null && playerBollards.length >= 4) {
+      _attachAllFourMooringLines();
+    }
+
+    world.add(RopeRenderer());
+
     // Начальная камера (без плавности)
     const double dockY = 0;
     double distancePixels = (yacht.position.y - dockY).abs();
@@ -189,6 +201,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void _setupMarinaLayout(LevelConfig config) {
+    _greenZoneRect = null;
     final params = MarinaLayoutParams(slotCount: config.marinaLayout.length);
     final double dockWidth = params.dockWidthPixels;
     final double dockX = MarinaLayout.dockX(dockWidth, playArea.width);
@@ -198,6 +211,8 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       config.marinaLayout,
       params.slipStepPixels,
       params.edgePaddingPixels,
+      mooringLinesCount: config.mooringLinesCount,
+      bollardCount: config.bollardCount,
     ));
 
     dock = Dock(
@@ -302,6 +317,27 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   void _checkVictoryCondition() {
     if (_victoryTriggered) return;
+    final LevelConfig? config = currentLevel;
+
+    // Уровень 2: победа — отшвартоваться (отдать все концы) и покинуть зелёную зону.
+    if (config?.startWithAllLinesSecured == true && _greenZoneRect != null) {
+      final bool allReleased = yacht.bowMooredTo == null &&
+          yacht.sternMooredTo == null &&
+          yacht.forwardSpringMooredTo == null &&
+          yacht.backSpringMooredTo == null;
+      final bool outsideZone = !_greenZoneRect!.contains(yacht.position.toOffset());
+      if (allReleased && outsideZone) {
+        _victoryTriggered = true;
+        pauseEngine();
+        statusMessage = l10n?.statusMissionAccomplished ?? 'MISSION ACCOMPLISHED';
+        debugPrint('Victory triggered (departed from zone)');
+        TestLogger.printFinalBlock();
+        overlays.add('Victory');
+      }
+      return;
+    }
+
+    // Уровень 1 (и др.): победа — пришвартоваться и остановиться.
     bool moored = yacht.bowMooredTo != null && yacht.sternMooredTo != null;
     bool stopped = yacht.velocity.length < Constants.victorySpeedThresholdPixels;
 
@@ -331,8 +367,30 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     statusMessage = msg;
   }
 
+  void _attachAllFourMooringLines() {
+    final bollardY = dock!.position.y + (dock!.size.y * Dock.bollardYFactor);
+    final bollards = playerBollards.map((x) => Vector2(dock!.position.x + x, bollardY)).toList();
+    if (bollards.length < 4) return;
+
+    yacht.bowMooredTo = bollards[0];
+    yacht.bowRopeRestLength = yacht.bowWorldPosition.distanceTo(bollards[0]);
+    yacht.forwardSpringMooredTo = bollards[1];
+    yacht.forwardSpringRestLength = yacht.forwardSpringWorldPosition.distanceTo(bollards[1]);
+    yacht.backSpringMooredTo = bollards[2];
+    yacht.backSpringRestLength = yacht.backSpringWorldPosition.distanceTo(bollards[2]);
+    yacht.sternMooredTo = bollards[3];
+    yacht.sternRopeRestLength = yacht.sternWorldPosition.distanceTo(bollards[3]);
+    //updateStatus(l10n?.statusAllLinesSecured ?? 'All lines secured. Release to depart.');
+  }
+
   void _addParkingMarker(Vector2 pos, double slipWidth) {
     final markerSize = Vector2(slipWidth * 0.9, yacht.size.x * 1.2);
+    _greenZoneRect = Rect.fromLTWH(
+      pos.x - markerSize.x / 2,
+      pos.y,
+      markerSize.x,
+      markerSize.y,
+    );
     world.add(RectangleComponent(
       position: pos,
       size: markerSize,
@@ -349,32 +407,79 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     ));
   }
 
-  // Швартовка
+  // Швартовка: закрепить конец у ближайшей тумбы
   void moerBow() {
     if (dock == null || !yacht.canMoerBow) return;
-    _performMooring(isBow: true);
+    _performMooring(lineIndex: 0, isBow: true, isStern: false);
   }
 
   void moerStern() {
     if (dock == null || !yacht.canMoerStern) return;
-    _performMooring(isBow: false);
+    _performMooring(lineIndex: playerBollards.length - 1, isBow: false, isStern: true);
   }
 
-  void _performMooring({required bool isBow}) {
+  void moerForwardSpring() {
+    if (dock == null || !yacht.canMoerForwardSpring || playerBollards.length < 4) return;
+    _performMooring(lineIndex: 1, isBow: false, isStern: false, isForwardSpring: true);
+  }
+
+  void moerBackSpring() {
+    if (dock == null || !yacht.canMoerBackSpring || playerBollards.length < 4) return;
+    _performMooring(lineIndex: 2, isBow: false, isStern: false, isBackSpring: true);
+  }
+
+  void releaseBow() {
+    yacht.bowMooredTo = null;
+    yacht.bowRopeRestLength = null;
+    updateStatus(l10n?.statusBowReleased ?? 'Bow line released');
+  }
+
+  void releaseStern() {
+    yacht.sternMooredTo = null;
+    yacht.sternRopeRestLength = null;
+    updateStatus(l10n?.statusSternReleased ?? 'Stern line released');
+  }
+
+  void releaseForwardSpring() {
+    yacht.forwardSpringMooredTo = null;
+    yacht.forwardSpringRestLength = null;
+    updateStatus(l10n?.statusForwardSpringReleased ?? 'Forward spring released');
+  }
+
+  void releaseBackSpring() {
+    yacht.backSpringMooredTo = null;
+    yacht.backSpringRestLength = null;
+    updateStatus(l10n?.statusBackSpringReleased ?? 'Back spring released');
+  }
+
+  void _performMooring({
+    required int lineIndex,
+    required bool isBow,
+    required bool isStern,
+    bool isForwardSpring = false,
+    bool isBackSpring = false,
+  }) {
     final bollardY = dock!.position.y + (dock!.size.y * Dock.bollardYFactor);
     final bollards = playerBollards.map((x) => Vector2(dock!.position.x + x, bollardY)).toList();
-    final currentPos = isBow ? yacht.bowWorldPosition : yacht.sternWorldPosition;
+    if (lineIndex < 0 || lineIndex >= bollards.length) return;
 
-    Vector2 target = bollards.reduce((a, b) => currentPos.distanceTo(a) < currentPos.distanceTo(b) ? a : b);
-
+    Vector2 target = bollards[lineIndex];
     if (isBow) {
       yacht.bowMooredTo = target;
       yacht.bowRopeRestLength = yacht.bowWorldPosition.distanceTo(target);
       updateStatus(l10n?.statusBowSecured ?? 'Bow line secured');
-    } else {
+    } else if (isStern) {
       yacht.sternMooredTo = target;
       yacht.sternRopeRestLength = yacht.sternWorldPosition.distanceTo(target);
       updateStatus(l10n?.statusSternSecured ?? 'Stern line secured');
+    } else if (isForwardSpring) {
+      yacht.forwardSpringMooredTo = target;
+      yacht.forwardSpringRestLength = yacht.forwardSpringWorldPosition.distanceTo(target);
+      updateStatus(l10n?.statusForwardSpringSecured ?? 'Forward spring secured');
+    } else if (isBackSpring) {
+      yacht.backSpringMooredTo = target;
+      yacht.backSpringRestLength = yacht.backSpringWorldPosition.distanceTo(target);
+      updateStatus(l10n?.statusBackSpringSecured ?? 'Back spring secured');
     }
   }
 
@@ -397,16 +502,16 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     updateStatus(l10n?.statusLevelRestarted ?? 'Level Restarted');
   }
 
-  void showMooringButtons(bool bow, bool stern) {
-    // Предотвращаем мерцание: если состояние кнопок не изменилось, ничего не делаем
-    if (bowButtonActive == bow && sternButtonActive == stern) return;
+  void showMooringButtons(bool bow, bool stern, [bool forwardSpring = false, bool backSpring = false]) {
+    if (bowButtonActive == bow && sternButtonActive == stern &&
+        forwardSpringButtonActive == forwardSpring && backSpringButtonActive == backSpring) return;
 
     bowButtonActive = bow;
     sternButtonActive = stern;
+    forwardSpringButtonActive = forwardSpring;
+    backSpringButtonActive = backSpring;
 
-    // Если хотя бы одна кнопка должна быть видна — показываем оверлей
-    if (bowButtonActive || sternButtonActive) {
-      // Сначала удаляем старый, чтобы Flutter перерисовал виджет с новыми параметрами
+    if (bowButtonActive || sternButtonActive || forwardSpringButtonActive || backSpringButtonActive) {
       overlays.remove('MooringMenu');
       overlays.add('MooringMenu');
     } else {
@@ -415,11 +520,11 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   }
 
   void hideMooringButtons() {
-    // Если кнопки и так скрыты, выходим
-    if (!bowButtonActive && !sternButtonActive) return;
-
+    if (!bowButtonActive && !sternButtonActive && !forwardSpringButtonActive && !backSpringButtonActive) return;
     overlays.remove('MooringMenu');
     bowButtonActive = false;
     sternButtonActive = false;
+    forwardSpringButtonActive = false;
+    backSpringButtonActive = false;
   }
 }

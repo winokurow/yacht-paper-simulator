@@ -89,6 +89,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get mooringGiveStern => 'ПОДАТЬ КОРМОВОЙ';
 
   @override
+  String get mooringForwardSpring => 'Шпринг носовой';
+
+  @override
+  String get mooringBackSpring => 'Шпринг кормовой';
+
+  @override
+  String get mooringGiveForwardSpring => 'Отдать шпринг носовой';
+
+  @override
+  String get mooringGiveBackSpring => 'Отдать шпринг кормовой';
+
+  @override
   String get victoryTitle => 'УСПЕШНАЯ ШВАРТОВКА!';
 
   @override
@@ -102,6 +114,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get victoryMessageShort => 'Судно надежно закреплено в порту.';
+
+  @override
+  String get victoryTitleDeparted => 'УСПЕШНЫЙ ОТХОД!';
+
+  @override
+  String get victoryMessageShortDeparted => 'Вы покинули причальную зону.';
 
   @override
   String get gameOverTitle => 'ПРОИСШЕСТВИЕ';
@@ -123,6 +141,27 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get statusSternSecured => 'Кормовая отдана';
+
+  @override
+  String get statusBowReleased => 'Носовая отдана';
+
+  @override
+  String get statusSternReleased => 'Кормовая отдана';
+
+  @override
+  String get statusForwardSpringSecured => 'Шпринг носовой отдан';
+
+  @override
+  String get statusBackSpringSecured => 'Шпринг кормовой отдан';
+
+  @override
+  String get statusForwardSpringReleased => 'Шпринг носовой отдан';
+
+  @override
+  String get statusBackSpringReleased => 'Шпринг кормовой отдан';
+
+  @override
+  String get statusAllLinesSecured => 'Все концы заведены. Отдайте и отходите.';
 
   @override
   String get statusLevelRestarted => 'Уровень перезапущен';
@@ -155,11 +194,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Тихая марина. Запаркуйте яхту в свободный слот между другими судами.';
 
   @override
-  String get level2Name => 'Течение Сены';
+  String get level2Name => 'Отход лагом';
 
   @override
-  String get level2Description =>
-      'Сложная швартовка на реке с сильным боковым течением.';
+  String get level2Description => 'Яхта стоит лагом. Отдайте концы и отойдите.';
 
   @override
   String get levelSettingsTitle => 'Настройки уровня';

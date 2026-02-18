@@ -89,6 +89,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get mooringGiveStern => 'HECKLEINE AUSGEBEN';
 
   @override
+  String get mooringForwardSpring => 'Vorderspring';
+
+  @override
+  String get mooringBackSpring => 'Achterpring';
+
+  @override
+  String get mooringGiveForwardSpring => 'Vorderspring ausgeben';
+
+  @override
+  String get mooringGiveBackSpring => 'Achterpring ausgeben';
+
+  @override
   String get victoryTitle => 'ERFOLGREICH ANGELEGT!';
 
   @override
@@ -103,6 +115,13 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get victoryMessageShort =>
       'Das Schiff ist sicher im Hafen festgemacht.';
+
+  @override
+  String get victoryTitleDeparted => 'ERFOLGREICH ABGELEGT!';
+
+  @override
+  String get victoryMessageShortDeparted =>
+      'Sie haben die Liegezone verlassen.';
 
   @override
   String get gameOverTitle => 'KOLLISION';
@@ -124,6 +143,28 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get statusSternSecured => 'Heckleine fest';
+
+  @override
+  String get statusBowReleased => 'Bugleine los';
+
+  @override
+  String get statusSternReleased => 'Heckleine los';
+
+  @override
+  String get statusForwardSpringSecured => 'Vorderspring fest';
+
+  @override
+  String get statusBackSpringSecured => 'Achterpring fest';
+
+  @override
+  String get statusForwardSpringReleased => 'Vorderspring los';
+
+  @override
+  String get statusBackSpringReleased => 'Achterpring los';
+
+  @override
+  String get statusAllLinesSecured =>
+      'Alle Leinen fest. Loswerfen zum Ablegen.';
 
   @override
   String get statusLevelRestarted => 'Level neu gestartet';
@@ -156,11 +197,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Ruhige Marina. Parken Sie die Yacht in der freien Lücke zwischen anderen Schiffen.';
 
   @override
-  String get level2Name => 'Strömung der Seine';
+  String get level2Name => 'Ablegen längsseits';
 
   @override
-  String get level2Description =>
-      'Schwieriges Anlegen an einem Fluss mit starker Seitenströmung.';
+  String get level2Description => 'Yacht liegt mit 4 Leinen längsseits.';
 
   @override
   String get levelSettingsTitle => 'Level-Einstellungen';

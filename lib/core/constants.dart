@@ -7,8 +7,8 @@ class Constants {
   // --- ФИЗИКА (Приведенная к реальности) ---
   // Для 5-тонной яхты (5000 кг)
   static const double yachtMass = 2500.0;
-  // Тяга двигателя (для яхты 50л.с. это примерно 3000-5000 Ньютонов)
-  static const double maxThrust = 7000.0;
+  /// Тяга двигателя [Н]. Подобрано так, чтобы при среднем ветре (~5 м/с) лодка могла идти против ветра на 70–100% газа.
+  static const double maxThrust = 9000.0;
 
   static const double dragCoefficient = 150.0;   // Сопротивление воды
   static const double angularDrag = 5;
@@ -36,11 +36,14 @@ class Constants {
   static const double propWalkEffect = 3.2;
   /// Дистанция до причала (пиксели), ниже которой при заднем ходе отключаем prop walk.
   static const double propWalkSuppressDistanceToDockPixels = 4.0 * pixelRatio;
-  static const double yachtInertia = 6000.0;
+  /// Момент инерции (кг·м²). Меньше — быстрее отклик руля и меньше радиус разворота.
+  static const double yachtInertia = 5000.0;
 
   static const double mooringSpringStiffness = 150.0; // Жесткость каната
   static const double mooringDamping = 40.0;         // Гашение колебаний
   static const double maxMooringForce = 2000.0;       // Ограничитель силы рывка
+  static const double maxLineTensionPixels = 800.0;    // Макс. натяжение (пиксели) для ограничения силы
+  static const double mooringSpringElasticity = 0.4;  // Упругость шпрингов (доля от полного натяжения)
   static const double maxRopeLength = 2.0;            // Длина каната в метрах
   static const double maxRopeExtension = 5.0;
 
@@ -87,8 +90,8 @@ class Constants {
   static const double dockHeightPixels = 140.0;
 
   // --- ФИЗИКА: дополнительные коэффициенты (из yacht_physics) ---
-  /// Множитель силы ветра (площадь × коэффициент).
-  static const double windForceFactor = 28.0;
+  /// Множитель силы ветра: F = windageArea × v² × windForceFactor. При 5 м/с даёт ~6000 Н; тяга 10500 Н позволяет идти против ветра.
+  static const double windForceFactor = 15.0;
   /// Порог скорости (м/с), ниже которого сопротивление не считается.
   static const double minSpeedForDrag = 0.001;
   /// Порог газа, ниже которого prop walk не действует.
@@ -101,8 +104,8 @@ class Constants {
   /// Ограничение затухания prop walk от скорости [0.2, 1.0].
   static const double propWalkSpeedClampMin = 0.2;
   static const double propWalkSpeedClampMax = 1.0;
-  /// Множитель момента руля (Н·м на единицу потока).
-  static const double rudderTorqueFactor = 800.0;
+  /// Множитель момента руля (Н·м на единицу потока). Подобран так, чтобы радиус разворота оставался приемлемым при увеличенной тяге.
+  static const double rudderTorqueFactor = 1600.0;
   /// Множитель момента prop walk.
   static const double propWalkTorqueFactor = 2000.0;
   /// Жёсткость каната (линейная часть натяжения).
@@ -133,12 +136,13 @@ class Constants {
   static const double collisionZeroNormalThreshold = 1e-6;
   /// Доля меньшей стороны для приближённого радиуса.
   static const double collisionApproximateRadiusFactor = 0.5;
-  /// Смещение точки крепления швартовых от борта (доля ширины).
-  static const double ropeOffsetFromBoard = 0.12;
+  /// Смещение точки крепления швартовых от диаметральной плоскости (доля ширины яхты, size.y).
+  /// Меняет положение концов на борту. После изменения — полный перезапуск приложения (Hot Reload const не подхватывает).
+  static const double ropeOffsetFromBoard = 0.22;
   /// Позиция носового крепления (доля длины от носа: 0.2 = 20% от носа).
   static const double ropeBowPositionFactor = 0.20;
-  /// Позиция кормового крепления (0.98 от носа).
-  static const double ropeSternPositionFactor = 0.98;
+  /// Позиция кормового крепления (0.95 от носа).
+  static const double ropeSternPositionFactor = 0.90;
   /// Порог разницы throttle для сглаживания.
   static const double throttleSmoothDeadZone = 0.01;
   /// Порог разницы руля для шага.
@@ -155,4 +159,6 @@ class Constants {
   static const double ropeSagDistanceFactor = 3.0;
   /// Коэффициент провисания дуги каната.
   static const double ropeSagFactor = 0.4;
+  /// Минимальная длина каната (пиксели), при которой рисуется провисание; иначе — прямая (чтобы у причала все концы были видны).
+  static const double ropeMinLengthForSagPixels = 8.0;
 }

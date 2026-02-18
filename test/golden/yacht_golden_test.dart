@@ -39,7 +39,7 @@ class GoldenTestYachtGame extends YachtMasterGame {
   @override
   void onGameOver(String reason) {}
   @override
-  void showMooringButtons(bool bow, bool stern) {}
+  void showMooringButtons(bool bow, bool stern, [bool forwardSpring = false, bool backSpring = false]) {}
   @override
   void hideMooringButtons() {}
   @override

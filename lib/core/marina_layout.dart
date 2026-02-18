@@ -34,14 +34,31 @@ class MarinaLayout {
   }
 
   /// X-позиции тумб для слота игрока [пиксели от левого края причала].
+  /// Для 4 концов и [bollardCount] == 2: первый кнехт — нос + носовой шпринг, задний — корма + кормовой шпринг.
   static List<double> playerBollardXPositions(
     List<BoatPlacement> marinaLayout,
     double slipStepPixels,
-    double edgePaddingPixels,
-  ) {
+    double edgePaddingPixels, {
+    int mooringLinesCount = 2,
+    int? bollardCount,
+  }) {
     for (int i = 0; i < marinaLayout.length; i++) {
       if (marinaLayout[i].type == 'player_slot') {
         double slotLeft = edgePaddingPixels + (i * slipStepPixels);
+        if (mooringLinesCount >= 4) {
+          final int bollards = bollardCount ?? mooringLinesCount;
+          if (bollards == 2) {
+            final double firstX = slotLeft + (slipStepPixels * 0.2);  // передний кнехт (нос, кормовой шпринг)
+            final double aftX = slotLeft + (slipStepPixels * 0.8);    // задний кнехт (корма, носовой шпринг)
+            return [firstX, aftX, firstX, aftX]; // [bow, forwardSpring, backSpring, stern]
+          }
+          return [
+            slotLeft + (slipStepPixels * 0.12),
+            slotLeft + (slipStepPixels * 0.38),
+            slotLeft + (slipStepPixels * 0.62),
+            slotLeft + (slipStepPixels * 0.88),
+          ];
+        }
         return [
           slotLeft + (slipStepPixels * 0.2),
           slotLeft + (slipStepPixels * 0.8),
