@@ -145,6 +145,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get statusSternSecured => 'Heckleine fest';
 
   @override
+  String get statusMooringGetCloser => 'Näher an die Mooringboje heranfahren';
+
+  @override
   String get statusBowReleased => 'Bugleine los';
 
   @override
@@ -203,6 +206,31 @@ class AppLocalizationsDe extends AppLocalizations {
   String get level2Description => 'Yacht liegt mit 4 Leinen längsseits.';
 
   @override
+  String get level3Name => 'Heck-an-Mooring';
+
+  @override
+  String get level3Description =>
+      'Heck-an: Backbord-Achterleine, Steuerbord-Achterleine und Mooring-Leine zum Anker. Seitenwind.';
+
+  @override
+  String get mooringSternPort => 'HECK BACKBORD';
+
+  @override
+  String get mooringSternStarboard => 'HECK STEUERBORD';
+
+  @override
+  String get mooringLazyLine => 'MOORING-LEINE';
+
+  @override
+  String get mooringGiveSternPort => 'Heck Backbord los';
+
+  @override
+  String get mooringGiveSternStarboard => 'Heck Steuerbord los';
+
+  @override
+  String get mooringGiveLazyLine => 'Mooring-Leine los';
+
+  @override
   String get levelSettingsTitle => 'Level-Einstellungen';
 
   @override
@@ -255,4 +283,21 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get compassNW => 'NW';
+
+  @override
+  String get level4Name => 'Heck-an mit Anker';
+
+  @override
+  String get level4Description =>
+      'Anker in der markierten Zone werfen, rückwärts zum Steg fahren und zwei Heckleinen festmachen.';
+
+  @override
+  String get controlDropAnchor => 'ANKER WERFEN';
+
+  @override
+  String get statusAnchorGetCloser =>
+      'In die grüne Zone fahren, um den Anker zu werfen';
+
+  @override
+  String get statusAnchorDropped => 'Anker geworfen!';
 }

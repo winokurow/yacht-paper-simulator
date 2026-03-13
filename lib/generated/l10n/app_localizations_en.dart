@@ -143,6 +143,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusSternSecured => 'Stern line secured';
 
   @override
+  String get statusMooringGetCloser => 'Get closer to the mooring buoy';
+
+  @override
   String get statusBowReleased => 'Bow line released';
 
   @override
@@ -200,6 +203,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get level2Description => 'Yacht is moored alongside with 4 lines.';
 
   @override
+  String get level3Name => 'Stern-to Mooring';
+
+  @override
+  String get level3Description =>
+      'Moor stern-to: stern port, stern starboard, and lazy line to anchor. Side wind.';
+
+  @override
+  String get mooringSternPort => 'STERN PORT';
+
+  @override
+  String get mooringSternStarboard => 'STERN STARBOARD';
+
+  @override
+  String get mooringLazyLine => 'MOORING LINE';
+
+  @override
+  String get mooringGiveSternPort => 'Give stern port';
+
+  @override
+  String get mooringGiveSternStarboard => 'Give stern starboard';
+
+  @override
+  String get mooringGiveLazyLine => 'Give mooring line';
+
+  @override
   String get levelSettingsTitle => 'Level Settings';
 
   @override
@@ -252,4 +280,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get compassNW => 'NW';
+
+  @override
+  String get level4Name => 'Stern-to with Anchor';
+
+  @override
+  String get level4Description =>
+      'Drop anchor in the designated zone, back up to the pier, and secure two stern lines.';
+
+  @override
+  String get controlDropAnchor => 'DROP ANCHOR';
+
+  @override
+  String get statusAnchorGetCloser => 'Enter the green zone to drop anchor';
+
+  @override
+  String get statusAnchorDropped => 'Anchor dropped!';
 }

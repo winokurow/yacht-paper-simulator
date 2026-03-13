@@ -33,7 +33,7 @@ class Constants {
   static const double lateralDragMultiplier = 5.0; // Эффект киля
   static PropellerType propType = PropellerType.rightHanded;
   /// Эффект заброса кормы (prop walk); снижен под массу яхты, чтобы не заезжать на причал.
-  static const double propWalkEffect = 3.2;
+  static const double propWalkEffect = 1.3;
   /// Дистанция до причала (пиксели), ниже которой при заднем ходе отключаем prop walk.
   static const double propWalkSuppressDistanceToDockPixels = 4.0 * pixelRatio;
   /// Момент инерции (кг·м²). Меньше — быстрее отклик руля и меньше радиус разворота.
@@ -76,8 +76,12 @@ class Constants {
   static const double noseSectorFactor = 0.3;
   /// Дистанция до тумбы (пиксели), в пределах которой доступна швартовка.
   static const double mooringBollardProximityPixels = 3.5 * pixelRatio;
+  /// Дистанция до якоря муринга (пиксели). Чуть больше, чем до тумбы, чтобы кнопка срабатывала уверенно.
+  static const double mooringAnchorProximityPixels = 5.0 * pixelRatio;
   /// Макс. скорость (пиксели/кадр) для показа кнопок швартовки.
   static const double mooringSpeedThresholdPixels = 1.2 * pixelRatio;
+  /// Радиус отображаемой точки якоря муринга (пиксели).
+  static const double mooringAnchorMarkerRadiusPixels = 12.0;
 
   // --- МИР ---
   static const double playAreaWidth = 10000.0;
@@ -106,6 +110,8 @@ class Constants {
   static const double propWalkSpeedClampMax = 1.0;
   /// Множитель момента руля (Н·м на единицу потока). Подобран так, чтобы радиус разворота оставался приемлемым при увеличенной тяге.
   static const double rudderTorqueFactor = 1600.0;
+  /// На заднем ходе руль действует «наоборот»; множитель >1 чтобы пересилить prop walk при повороте против заброса.
+  static const double rudderReverseEffectiveness = 3;
   /// Множитель момента prop walk.
   static const double propWalkTorqueFactor = 2000.0;
   /// Жёсткость каната (линейная часть натяжения).
@@ -120,6 +126,36 @@ class Constants {
   static const double mooringDampingStrong = 0.92;
   /// Доля длины каната, выше которой включается сильное демпфирование.
   static const double mooringStrainRatioForStrongDamping = 0.2;
+  /// Муринг (ленивый конец): линейная жёсткость натяжения (как [mooringTensionLinear]).
+  static const double lazyLineTensionLinear = 45.0;
+  /// Муринг: квадратичная часть натяжения.
+  static const double lazyLineTensionQuadratic = 0.2;
+  /// Макс. длина муринга от носа до якоря (м).
+  static const double lazyLineMaxLengthMeters = 80.0;
+  /// Допуск угла для победы на уровнях 3/4 (градусы): яхта в пределах ±5° от целевого угла.
+  static const double victoryAngleToleranceDegrees = 5.0;
+
+  // --- ЯКОРЬ И ЦЕПЬ (уровень 4) ---
+  /// Макс. длина якорной цепи (метры). При превышении — натяжение тянет нос к якорю.
+  static const double anchorChainMaxLengthMeters = 30.0;
+  /// Жёсткость якорной цепи (линейная).
+  static const double anchorChainTensionLinear = 60.0;
+  /// Жёсткость якорной цепи (квадратичная).
+  static const double anchorChainTensionQuadratic = 0.3;
+  /// Макс. натяжение цепи (пиксели) — ограничитель рывка.
+  static const double anchorChainMaxTensionPixels = 1200.0;
+  /// Демпфирование скорости при натяжении цепи (слабое).
+  static const double anchorChainDampingLight = 0.96;
+  /// Демпфирование при сильном натяжении цепи.
+  static const double anchorChainDampingStrong = 0.88;
+  /// Доля длины цепи, выше которой включается сильное демпфирование.
+  static const double anchorChainStrainRatioForStrongDamping = 0.15;
+  /// Радиус зоны сброса якоря (метры). Яхта должна быть в пределах этого радиуса от центра зоны.
+  static const double anchorDropZoneRadiusMeters = 20.0;
+  /// Радиус маркера зоны сброса якоря (пиксели) для отрисовки.
+  static const double anchorDropZoneMarkerRadiusPixels = 20.0 * pixelRatio;
+  /// Порог натяжения цепи (доля от maxLength), выше которого цепь рисуется красной.
+  static const double anchorChainTensionWarningRatio = 0.85;
   /// Макс. шагов субстеппинга интеграции.
   static const int integrationMaxSteps = 25;
   /// Размер шага (пиксели) для субстеппинга.
@@ -143,6 +179,8 @@ class Constants {
   static const double ropeBowPositionFactor = 0.20;
   /// Позиция кормового крепления (0.95 от носа).
   static const double ropeSternPositionFactor = 0.90;
+  /// Края кормы для уровня 3 (кормовой левый/правый): доля полуширины от центра (0.3 = края по полигону 0.2/0.8).
+  static const double ropeSternEdgeFactor = 0.3;
   /// Порог разницы throttle для сглаживания.
   static const double throttleSmoothDeadZone = 0.01;
   /// Порог разницы руля для шага.

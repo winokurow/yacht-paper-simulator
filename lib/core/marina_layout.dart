@@ -41,10 +41,23 @@ class MarinaLayout {
     double edgePaddingPixels, {
     int mooringLinesCount = 2,
     int? bollardCount,
+    List<double>? bollardPositionFactors,
   }) {
     for (int i = 0; i < marinaLayout.length; i++) {
       if (marinaLayout[i].type == 'player_slot') {
         double slotLeft = edgePaddingPixels + (i * slipStepPixels);
+        if (mooringLinesCount == 3) {
+          // Уровень 3 (кормой к причалу): [0] = левый кнехт слота (порт), [1] = правый (старборд).
+          final double a = (bollardPositionFactors != null && bollardPositionFactors.length >= 2)
+              ? bollardPositionFactors[0]
+              : 0.25;
+          final double b = (bollardPositionFactors != null && bollardPositionFactors.length >= 2)
+              ? bollardPositionFactors[1]
+              : 0.75;
+          final double leftBollardX = slotLeft + (slipStepPixels * a);
+          final double rightBollardX = slotLeft + (slipStepPixels * b);
+          return [leftBollardX, rightBollardX];
+        }
         if (mooringLinesCount >= 4) {
           final int bollards = bollardCount ?? mooringLinesCount;
           if (bollards == 2) {

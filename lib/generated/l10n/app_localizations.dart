@@ -364,6 +364,12 @@ abstract class AppLocalizations {
   /// **'Stern line secured'**
   String get statusSternSecured;
 
+  /// No description provided for @statusMooringGetCloser.
+  ///
+  /// In en, this message translates to:
+  /// **'Get closer to the mooring buoy'**
+  String get statusMooringGetCloser;
+
   /// No description provided for @statusBowReleased.
   ///
   /// In en, this message translates to:
@@ -472,6 +478,54 @@ abstract class AppLocalizations {
   /// **'Yacht is moored alongside with 4 lines.'**
   String get level2Description;
 
+  /// No description provided for @level3Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Stern-to Mooring'**
+  String get level3Name;
+
+  /// No description provided for @level3Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Moor stern-to: stern port, stern starboard, and lazy line to anchor. Side wind.'**
+  String get level3Description;
+
+  /// No description provided for @mooringSternPort.
+  ///
+  /// In en, this message translates to:
+  /// **'STERN PORT'**
+  String get mooringSternPort;
+
+  /// No description provided for @mooringSternStarboard.
+  ///
+  /// In en, this message translates to:
+  /// **'STERN STARBOARD'**
+  String get mooringSternStarboard;
+
+  /// No description provided for @mooringLazyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'MOORING LINE'**
+  String get mooringLazyLine;
+
+  /// No description provided for @mooringGiveSternPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Give stern port'**
+  String get mooringGiveSternPort;
+
+  /// No description provided for @mooringGiveSternStarboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Give stern starboard'**
+  String get mooringGiveSternStarboard;
+
+  /// No description provided for @mooringGiveLazyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Give mooring line'**
+  String get mooringGiveLazyLine;
+
   /// No description provided for @levelSettingsTitle.
   ///
   /// In en, this message translates to:
@@ -579,6 +633,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NW'**
   String get compassNW;
+
+  /// No description provided for @level4Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Stern-to with Anchor'**
+  String get level4Name;
+
+  /// No description provided for @level4Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop anchor in the designated zone, back up to the pier, and secure two stern lines.'**
+  String get level4Description;
+
+  /// No description provided for @controlDropAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'DROP ANCHOR'**
+  String get controlDropAnchor;
+
+  /// No description provided for @statusAnchorGetCloser.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the green zone to drop anchor'**
+  String get statusAnchorGetCloser;
+
+  /// No description provided for @statusAnchorDropped.
+  ///
+  /// In en, this message translates to:
+  /// **'Anchor dropped!'**
+  String get statusAnchorDropped;
 }
 
 class _AppLocalizationsDelegate

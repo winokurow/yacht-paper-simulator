@@ -33,6 +33,9 @@ class ThrottleLever extends PositionComponent with DragCallbacks, HasGameRef<Yac
     add(knob);
   }
 
+  /// Доля хода рычага (0..1), в пределах которой газ = 0 (мёртвая зона в центре).
+  static const double _deadZoneFraction = 0.08;
+
   @override
   void onDragUpdate(DragUpdateEvent event) {
     double newY = knob.position.y + event.localDelta.y;
@@ -41,8 +44,18 @@ class ThrottleLever extends PositionComponent with DragCallbacks, HasGameRef<Yac
     knob.position.y = newY.clamp(minY, maxY);
 
     double range = maxY - minY;
-    double normalized = (knob.position.y - minY) / range;
-    gameRef.yacht.targetThrottle = (1.0 - normalized * 2.0).clamp(-1.0, 1.0);
+    double normalized = (knob.position.y - minY) / range; // 0 = верх (полный вперёд), 1 = низ (полный назад)
+    double raw = 1.0 - normalized * 2.0; // +1..−1
+
+    // Зона нейтрали: если рычаг в пределах ±_deadZoneFraction от центра, газ = 0.
+    if (raw.abs() <= _deadZoneFraction) {
+      gameRef.yacht.targetThrottle = 0.0;
+    } else {
+      // Пересчитываем без мёртвой зоны, чтобы при выходе из неё газ начинался с 0.
+      final double sign = raw > 0 ? 1.0 : -1.0;
+      final double adjusted = (raw.abs() - _deadZoneFraction) / (1.0 - _deadZoneFraction);
+      gameRef.yacht.targetThrottle = (sign * adjusted).clamp(-1.0, 1.0);
+    }
   }
 
   @override

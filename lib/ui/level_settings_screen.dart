@@ -75,7 +75,7 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 500),
                     child: Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE0C9A6),
                         borderRadius: BorderRadius.circular(16),
@@ -95,117 +95,85 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
                           Text(
                             levelLocalizedName(l10n, widget.level).toUpperCase(),
                             style: const TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF3E2723),
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
                           Text(
                             levelLocalizedDescription(l10n, widget.level),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: Colors.brown.shade800,
                               fontStyle: FontStyle.italic,
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const Divider(color: Color(0xFF5D4037), thickness: 2),
-                          const SizedBox(height: 16),
+                          const Divider(color: Color(0xFF5D4037), thickness: 2, height: 16),
 
                           _SectionTitle(title: l10n.sectionWind),
-                          _buildSliderRow(
+                          _buildCompactSlider(
                             label: l10n.labelStrength,
+                            valueText: '${(windMult * 100).toInt()}%',
                             value: windMult,
                             min: 0,
                             max: 2,
                             divisions: 8,
-                            format: () => '${(windMult * 100).toInt()}%',
-                          ),
-                          Slider(
-                            value: windMult,
-                            min: 0,
-                            max: 2,
-                            divisions: 8,
-                            activeColor: Colors.brown,
                             onChanged: (v) => setState(() => windMult = v),
                           ),
-                          _buildSliderRow(
+                          _buildCompactSlider(
                             label: l10n.labelDirection,
+                            valueText: '${windDirectionDeg.toInt()}° ${_directionLabel(l10n, windDirectionDeg)}',
                             value: windDirectionDeg,
                             min: 0,
                             max: 360,
                             divisions: 16,
-                            format: () => '${windDirectionDeg.toInt()}° ${_directionLabel(l10n, windDirectionDeg)}',
-                          ),
-                          Slider(
-                            value: windDirectionDeg,
-                            min: 0,
-                            max: 360,
-                            divisions: 16,
-                            activeColor: Colors.brown,
                             onChanged: (v) => setState(() => windDirectionDeg = v),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 8),
 
                           _SectionTitle(title: l10n.sectionCurrent),
-                          _buildSliderRow(
+                          _buildCompactSlider(
                             label: l10n.labelSpeed,
+                            valueText: currentSpeed.toStringAsFixed(1),
                             value: currentSpeed,
                             min: 0,
                             max: 2.5,
                             divisions: 10,
-                            format: () => currentSpeed.toStringAsFixed(1),
-                          ),
-                          Slider(
-                            value: currentSpeed,
-                            min: 0,
-                            max: 2.5,
-                            divisions: 10,
-                            activeColor: Colors.brown,
                             onChanged: (v) => setState(() => currentSpeed = v),
                           ),
-                          _buildSliderRow(
+                          _buildCompactSlider(
                             label: l10n.labelDirection,
+                            valueText: '${currentDirectionDeg.toInt()}° ${_directionLabel(l10n, currentDirectionDeg)}',
                             value: currentDirectionDeg,
                             min: 0,
                             max: 360,
                             divisions: 16,
-                            format: () => '${currentDirectionDeg.toInt()}° ${_directionLabel(l10n, currentDirectionDeg)}',
-                          ),
-                          Slider(
-                            value: currentDirectionDeg,
-                            min: 0,
-                            max: 360,
-                            divisions: 16,
-                            activeColor: Colors.brown,
                             onChanged: (v) => setState(() => currentDirectionDeg = v),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 8),
 
                           _SectionTitle(title: l10n.sectionPropeller),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _propellerChip(
-                                    label: l10n.propellerRight,
-                                    selected: propellerRightHanded,
-                                    onTap: () => setState(() => propellerRightHanded = true),
-                                  ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _propellerChip(
+                                  label: l10n.propellerRight,
+                                  selected: propellerRightHanded,
+                                  onTap: () => setState(() => propellerRightHanded = true),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _propellerChip(
-                                    label: l10n.propellerLeft,
-                                    selected: !propellerRightHanded,
-                                    onTap: () => setState(() => propellerRightHanded = false),
-                                  ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _propellerChip(
+                                  label: l10n.propellerLeft,
+                                  selected: !propellerRightHanded,
+                                  onTap: () => setState(() => propellerRightHanded = false),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -260,36 +228,45 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
     );
   }
 
-  Widget _buildSliderRow({
+  /// Компактный виджет: лейбл + значение в одной строке, слайдер прямо под ними без лишних отступов.
+  Widget _buildCompactSlider({
     required String label,
+    required String valueText,
     required double value,
     required double min,
     required double max,
     required int divisions,
-    required String Function() format,
+    required ValueChanged<double> onChanged,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF3E2723),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF3E2723))),
+            Text(valueText, style: const TextStyle(fontSize: 13, color: Colors.brown)),
+          ],
+        ),
+        SizedBox(
+          height: 32,
+          child: SliderTheme(
+            data: SliderThemeData(
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            ),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: divisions,
+              activeColor: Colors.brown,
+              onChanged: onChanged,
             ),
           ),
-          Text(
-            format(),
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.brown,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -305,7 +282,7 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),

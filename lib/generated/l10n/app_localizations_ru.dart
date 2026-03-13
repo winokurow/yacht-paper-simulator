@@ -143,6 +143,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get statusSternSecured => 'Кормовая отдана';
 
   @override
+  String get statusMooringGetCloser => 'Подойдите ближе к бую муринга';
+
+  @override
   String get statusBowReleased => 'Носовая отдана';
 
   @override
@@ -200,6 +203,31 @@ class AppLocalizationsRu extends AppLocalizations {
   String get level2Description => 'Яхта стоит лагом. Отдайте концы и отойдите.';
 
   @override
+  String get level3Name => 'Кормой к причалу';
+
+  @override
+  String get level3Description =>
+      'Швартовка кормой: кормовой левый, кормовой правый и муринг к якорю. Боковой ветер.';
+
+  @override
+  String get mooringSternPort => 'КОРМОВОЙ ЛЕВЫЙ';
+
+  @override
+  String get mooringSternStarboard => 'КОРМОВОЙ ПРАВЫЙ';
+
+  @override
+  String get mooringLazyLine => 'МУРИНГ';
+
+  @override
+  String get mooringGiveSternPort => 'Отдать кормовой левый';
+
+  @override
+  String get mooringGiveSternStarboard => 'Отдать кормовой правый';
+
+  @override
+  String get mooringGiveLazyLine => 'Отдать муринг';
+
+  @override
   String get levelSettingsTitle => 'Настройки уровня';
 
   @override
@@ -252,4 +280,20 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get compassNW => 'СЗ';
+
+  @override
+  String get level4Name => 'Кормой с якорем';
+
+  @override
+  String get level4Description =>
+      'Сбросьте якорь в обозначенной зоне, подойдите задним ходом к причалу и закрепите два кормовых конца.';
+
+  @override
+  String get controlDropAnchor => 'ОТДАТЬ ЯКОРЬ';
+
+  @override
+  String get statusAnchorGetCloser => 'Войдите в зелёную зону для сброса якоря';
+
+  @override
+  String get statusAnchorDropped => 'Якорь отдан!';
 }

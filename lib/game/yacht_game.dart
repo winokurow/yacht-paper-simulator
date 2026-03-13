@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flame/camera.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
@@ -8,6 +10,7 @@ import 'package:flutter/services.dart';
 import '../components/yacht_player.dart';
 import '../components/moored_yacht.dart';
 import '../components/dock_component.dart';
+import '../components/mooring_anchor_marker.dart';
 import '../components/rope_renderer.dart';
 import '../components/sea_component.dart';
 import '../core/constants.dart';
@@ -25,6 +28,21 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   late Sea sea;
   double totalGameTime = 0;
 
+  /// Уведомляет оверлей швартовки о перестройке (после отдачи/приёма концов).
+  final ChangeNotifier mooringOverlayNotifier = ChangeNotifier();
+
+  void _refreshMooringOverlay() {
+    yacht.refreshMooringConditions();
+    final bool menuVisible = sternPortButtonActive || sternStarboardButtonActive || lazyLineButtonActive ||
+        bowButtonActive || sternButtonActive || forwardSpringButtonActive || backSpringButtonActive ||
+        anchorDropButtonActive || sternPortButtonActiveAnchor || sternStarboardButtonActiveAnchor;
+    if (menuVisible) {
+      overlays.remove('MooringMenu');
+      overlays.add('MooringMenu');
+    }
+    mooringOverlayNotifier.notifyListeners();
+  }
+
   /// Локализации для использования в компонентах без BuildContext (устанавливается из GameView).
   AppLocalizations? l10n;
 
@@ -41,10 +59,23 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
   bool sternButtonActive = false;
   bool forwardSpringButtonActive = false;
   bool backSpringButtonActive = false;
+  bool sternPortButtonActive = false;
+  bool sternStarboardButtonActive = false;
+  bool lazyLineButtonActive = false;
   bool _victoryTriggered = false;
 
   List<double> playerBollards = [];
   Rect get playArea => Rect.fromLTWH(0, 0, Constants.playAreaWidth, Constants.playAreaHeight);
+
+  /// Позиция якоря муринга в мире (пиксели). Только для уровня с [MooringSetup.linesAndMooring].
+  Vector2? mooringAnchorPositionPixels;
+
+  /// Центр зоны сброса якоря в мировых координатах (пиксели). Только для [MooringSetup.linesAndAnchor].
+  Vector2? anchorDropZoneCenterPixels;
+
+  bool anchorDropButtonActive = false;
+  bool sternPortButtonActiveAnchor = false;
+  bool sternStarboardButtonActiveAnchor = false;
 
   /// Прямоугольник зелёной зоны (слот причала) в мировых координатах; для уровня 2 — победа при выходе из неё.
   Rect? _greenZoneRect;
@@ -135,6 +166,13 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
     _victoryTriggered = false;
     statusMessage = "";
+    bowButtonActive = false;
+    sternButtonActive = false;
+    forwardSpringButtonActive = false;
+    backSpringButtonActive = false;
+    sternPortButtonActive = false;
+    sternStarboardButtonActive = false;
+    lazyLineButtonActive = false;
 
     world.removeAll(world.children);
 
@@ -148,15 +186,26 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
     _buildEnvironment(config);
 
+    mooringAnchorPositionPixels = config.mooringAnchorPositionMeters != null
+        ? config.mooringAnchorPositionMeters! * Constants.pixelRatio
+        : null;
+
+    anchorDropZoneCenterPixels = config.anchorDropZoneCenterMeters != null
+        ? config.anchorDropZoneCenterMeters! * Constants.pixelRatio
+        : null;
+    anchorDropButtonActive = false;
+    sternPortButtonActiveAnchor = false;
+    sternStarboardButtonActiveAnchor = false;
+
     yacht.position = config.startPos * Constants.pixelRatio;
     yacht.onGameEvent = _onPlayerEvent;
     world.add(yacht);
 
-    if (config.startWithAllLinesSecured && dock != null && playerBollards.length >= 4) {
-      _attachAllFourMooringLines();
-    }
-
     world.add(RopeRenderer());
+    //if (mooringAnchorPositionPixels != null) {
+     // world.add(MooringAnchorMarker(position: mooringAnchorPositionPixels!));
+      //
+   // }
 
     // Начальная камера (без плавности)
     const double dockY = 0;
@@ -166,6 +215,10 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     double worldHeight = CameraMath.worldHeightAtZoom(initialZoom);
     camera.viewfinder.position = Vector2(yacht.position.x, CameraMath.targetCameraY(dockY, worldHeight));
     camera.viewfinder.anchor = Anchor.center;
+
+    if (config.startWithAllLinesSecured && dock != null && playerBollards.length >= 4) {
+      _attachAllFourMooringLines();
+    }
 
     // ВАЖНО: Убеждаемся, что движок работает
     resumeEngine();
@@ -202,7 +255,9 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
 
   void _setupMarinaLayout(LevelConfig config) {
     _greenZoneRect = null;
-    final params = MarinaLayoutParams(slotCount: config.marinaLayout.length);
+    final bool sternToLayout = config.mooringSetup.hasMooring || config.mooringSetup.hasAnchor;
+    final double slipWidthMeters = sternToLayout ? 8.0 : 15.0;
+    final params = MarinaLayoutParams(slotCount: config.marinaLayout.length, slipWidthMeters: slipWidthMeters);
     final double dockWidth = params.dockWidthPixels;
     final double dockX = MarinaLayout.dockX(dockWidth, playArea.width);
 
@@ -213,6 +268,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       params.edgePaddingPixels,
       mooringLinesCount: config.mooringLinesCount,
       bollardCount: config.bollardCount,
+      bollardPositionFactors: config.bollardPositionFactors,
     ));
 
     dock = Dock(
@@ -232,16 +288,27 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       );
 
       if (p.type == 'player_slot') {
-        _addParkingMarker(Vector2(posX, dockBottomY), params.slipStepPixels);
+        _addParkingMarker(Vector2(posX, dockBottomY), params.slipStepPixels, config);
+        if (anchorDropZoneCenterPixels != null) {
+          _addAnchorDropZoneMarker(anchorDropZoneCenterPixels!);
+        }
       } else {
-        double boatWidthPx = p.width * Constants.pixelRatio;
-        world.add(MooredYacht(
-          position: Vector2(posX, dockBottomY + (boatWidthPx / 2) + 2),
+        final bool sternTo = sternToLayout;
+        double offsetFromDockPx = (p.width * Constants.pixelRatio) / 2 + 2;  // лагом: половина ширины
+        if (sternTo) {
+          offsetFromDockPx = (p.length * Constants.pixelRatio) / 2 + 2;  // кормой: половина длины, чтобы корма не заходила на пирс
+        }
+        final moored = MooredYacht(
+          position: Vector2(posX, dockBottomY + offsetFromDockPx),
           spritePath: p.sprite ?? 'yacht_medium.png',
           lengthInMeters: p.length,
           widthInMeters: p.width,
           isNoseRight: p.isNoseRight,
-        ));
+        );
+        if (sternTo) {
+          moored.angle = math.pi / 2; // кормой к причалу (нос в марину)
+        }
+        world.add(moored);
       }
     }
   }
@@ -337,6 +404,59 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       return;
     }
 
+    // Уровень 3 (швартовка кормой с мурингом): все 3 конца закреплены, угол в допуске, скорость в норме.
+    if (config != null &&
+        config.mooringSetup.hasMooring &&
+        config.targetAngleDegrees != null &&
+        yacht.sternPortMooredTo != null &&
+        yacht.sternStarboardMooredTo != null &&
+        yacht.lazyLineAnchor != null) {
+      final double yachtDeg = yacht.angle * (180.0 / math.pi);
+      double diff = (yachtDeg - config.targetAngleDegrees!) % 360.0;
+      if (diff > 180.0) diff -= 360.0;
+      if (diff < -180.0) diff += 360.0;
+      final bool angleOk = diff.abs() <= Constants.victoryAngleToleranceDegrees;
+      final bool stopped = yacht.velocity.length < Constants.victorySpeedThresholdPixels;
+      // DEBUG: показываем состояние проверки победы в статусе
+      // final String dbg = 'angle=${yachtDeg.toStringAsFixed(1)}° diff=${diff.toStringAsFixed(1)}° speed=${yacht.velocity.length.toStringAsFixed(2)}';
+      // if (!angleOk || !stopped) {
+      //   updateStatus(dbg);
+      // }
+      if (angleOk && stopped) {
+        _victoryTriggered = true;
+        pauseEngine();
+        statusMessage = l10n?.statusMissionAccomplished ?? 'MISSION ACCOMPLISHED';
+        debugPrint('Victory triggered (Level 3 stern-to mooring)');
+        TestLogger.printFinalBlock();
+        overlays.add('Victory');
+      }
+      return;
+    }
+
+    // Уровень 4 (швартовка кормой с якорем): якорь сброшен, оба кормовых, перпендикуляр, остановка.
+    if (config != null &&
+        config.mooringSetup.hasAnchor &&
+        config.targetAngleDegrees != null &&
+        yacht.isAnchorDropped &&
+        yacht.sternPortMooredTo != null &&
+        yacht.sternStarboardMooredTo != null) {
+      final double yachtDeg = yacht.angle * (180.0 / math.pi);
+      double diff = (yachtDeg - config.targetAngleDegrees!) % 360.0;
+      if (diff > 180.0) diff -= 360.0;
+      if (diff < -180.0) diff += 360.0;
+      final bool angleOk = diff.abs() <= Constants.victoryAngleToleranceDegrees;
+      final bool stopped = yacht.velocity.length < Constants.victorySpeedThresholdPixels;
+      if (angleOk && stopped) {
+        _victoryTriggered = true;
+        pauseEngine();
+        statusMessage = l10n?.statusMissionAccomplished ?? 'MISSION ACCOMPLISHED';
+        debugPrint('Victory triggered (Level 4 stern-to with anchor)');
+        TestLogger.printFinalBlock();
+        overlays.add('Victory');
+      }
+      return;
+    }
+
     // Уровень 1 (и др.): победа — пришвартоваться и остановиться.
     bool moored = yacht.bowMooredTo != null && yacht.sternMooredTo != null;
     bool stopped = yacht.velocity.length < Constants.victorySpeedThresholdPixels;
@@ -372,19 +492,24 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     final bollards = playerBollards.map((x) => Vector2(dock!.position.x + x, bollardY)).toList();
     if (bollards.length < 4) return;
 
+    // Небольшой слак (запас), чтобы канаты не были в натяжении при старте и не дёргали яхту.
+    const double slackPixels = 5.0;
+
     yacht.bowMooredTo = bollards[0];
-    yacht.bowRopeRestLength = yacht.bowWorldPosition.distanceTo(bollards[0]);
+    yacht.bowRopeRestLength = yacht.bowWorldPosition.distanceTo(bollards[0]) + slackPixels;
     yacht.forwardSpringMooredTo = bollards[1];
-    yacht.forwardSpringRestLength = yacht.forwardSpringWorldPosition.distanceTo(bollards[1]);
+    yacht.forwardSpringRestLength = yacht.forwardSpringWorldPosition.distanceTo(bollards[1]) + slackPixels;
     yacht.backSpringMooredTo = bollards[2];
-    yacht.backSpringRestLength = yacht.backSpringWorldPosition.distanceTo(bollards[2]);
+    yacht.backSpringRestLength = yacht.backSpringWorldPosition.distanceTo(bollards[2]) + slackPixels;
     yacht.sternMooredTo = bollards[3];
-    yacht.sternRopeRestLength = yacht.sternWorldPosition.distanceTo(bollards[3]);
-    //updateStatus(l10n?.statusAllLinesSecured ?? 'All lines secured. Release to depart.');
+    yacht.sternRopeRestLength = yacht.sternWorldPosition.distanceTo(bollards[3]) + slackPixels;
   }
 
-  void _addParkingMarker(Vector2 pos, double slipWidth) {
-    final markerSize = Vector2(slipWidth * 0.9, yacht.size.x * 1.2);
+  void _addParkingMarker(Vector2 pos, double slipWidth, LevelConfig config) {
+    final double zoneWidth = config.greenZoneWidthInYachtWidths != null
+        ? yacht.size.y * config.greenZoneWidthInYachtWidths!
+        : slipWidth * 0.9;
+    final markerSize = Vector2(zoneWidth, yacht.size.x * 1.2);
     _greenZoneRect = Rect.fromLTWH(
       pos.x - markerSize.x / 2,
       pos.y,
@@ -407,15 +532,44 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     ));
   }
 
-  // Швартовка: закрепить конец у ближайшей тумбы
+  void _addAnchorDropZoneMarker(Vector2 center) {
+    final double radius = Constants.anchorDropZoneMarkerRadiusPixels;
+    world.add(CircleComponent(
+      position: center,
+      radius: radius,
+      anchor: Anchor.center,
+      paint: Paint()
+        ..color = Colors.green.withValues(alpha: 0.25)
+        ..style = PaintingStyle.fill,
+      priority: -2,
+    ));
+    world.add(CircleComponent(
+      position: center,
+      radius: radius,
+      anchor: Anchor.center,
+      paint: Paint()
+        ..color = Colors.green.withValues(alpha: 0.6)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+      priority: -1,
+    ));
+  }
+
+  // Швартовка: закрепить конец у тумбы. Уровень 1: носовой — передний кнехт [1], кормовой — задний [0].
   void moerBow() {
     if (dock == null || !yacht.canMoerBow) return;
-    _performMooring(lineIndex: 0, isBow: true, isStern: false);
+    final int lineIndex = (currentLevel?.id == 1 && playerBollards.length == 2)
+        ? 1  // передний кнехт (со стороны носа)
+        : 0;
+    _performMooring(lineIndex: lineIndex, isBow: true, isStern: false);
   }
 
   void moerStern() {
     if (dock == null || !yacht.canMoerStern) return;
-    _performMooring(lineIndex: playerBollards.length - 1, isBow: false, isStern: true);
+    final int lineIndex = (currentLevel?.id == 1 && playerBollards.length == 2)
+        ? 0  // задний кнехт (со стороны кормы)
+        : playerBollards.length - 1;
+    _performMooring(lineIndex: lineIndex, isBow: false, isStern: true);
   }
 
   void moerForwardSpring() {
@@ -428,28 +582,85 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     _performMooring(lineIndex: 2, isBow: false, isStern: false, isBackSpring: true);
   }
 
+  /// Кормовой левый (порт) — на левый кнехт слота [0]; кормовой правый (старборд) — на правый [1].
+  void moerSternPort() {
+    if (dock == null || !yacht.canMoerSternPort || playerBollards.length < 2) return;
+    final bollardY = dock!.position.y + (dock!.size.y * Dock.bollardYFactor);
+    // Левый борт (порт) → левый кнехт слота [0].
+    final Vector2 target = Vector2(dock!.position.x + playerBollards[0], bollardY);
+    yacht.sternPortMooredTo = target;
+    yacht.sternPortRestLength = yacht.sternLeftWorld.distanceTo(target);
+    //updateStatus(l10n?.statusSternSecured ?? 'Stern port secured');
+    _refreshMooringOverlay();
+  }
+
+  void moerSternStarboard() {
+    if (dock == null || !yacht.canMoerSternStarboard || playerBollards.length < 2) return;
+    final bollardY = dock!.position.y + (dock!.size.y * Dock.bollardYFactor);
+    // Правый борт (старборд) → правый кнехт слота [1].
+    final Vector2 target = Vector2(dock!.position.x + playerBollards[1], bollardY);
+    yacht.sternStarboardMooredTo = target;
+    yacht.sternStarboardRestLength = yacht.sternRightWorld.distanceTo(target);
+    //updateStatus(l10n?.statusSternSecured ?? 'Stern starboard secured');
+    _refreshMooringOverlay();
+  }
+
+  void moerLazyLine() {
+    if (mooringAnchorPositionPixels == null) return;
+    if (yacht.lazyLineAnchor != null) return;
+    yacht.lazyLineAnchor = mooringAnchorPositionPixels;
+    yacht.lazyLineRestLength = yacht.bowTipWorldPosition.distanceTo(mooringAnchorPositionPixels!);
+    //updateStatus(l10n?.statusBowSecured ?? 'Mooring line secured');
+    _refreshMooringOverlay();
+  }
+
+  void releaseSternPort() {
+    yacht.sternPortMooredTo = null;
+    yacht.sternPortRestLength = null;
+    //updateStatus(l10n?.statusSternReleased ?? 'Stern port released');
+    _refreshMooringOverlay();
+  }
+
+  void releaseSternStarboard() {
+    yacht.sternStarboardMooredTo = null;
+    yacht.sternStarboardRestLength = null;
+    //updateStatus(l10n?.statusSternReleased ?? 'Stern starboard released');
+    _refreshMooringOverlay();
+  }
+
+  void releaseLazyLine() {
+    yacht.lazyLineAnchor = null;
+    yacht.lazyLineRestLength = null;
+    //updateStatus(l10n?.statusBowReleased ?? 'Mooring line released');
+    _refreshMooringOverlay();
+  }
+
   void releaseBow() {
     yacht.bowMooredTo = null;
     yacht.bowRopeRestLength = null;
-    updateStatus(l10n?.statusBowReleased ?? 'Bow line released');
+    //updateStatus(l10n?.statusBowReleased ?? 'Bow line released');
+    _refreshMooringOverlay();
   }
 
   void releaseStern() {
     yacht.sternMooredTo = null;
     yacht.sternRopeRestLength = null;
-    updateStatus(l10n?.statusSternReleased ?? 'Stern line released');
+    //updateStatus(l10n?.statusSternReleased ?? 'Stern line released');
+    _refreshMooringOverlay();
   }
 
   void releaseForwardSpring() {
     yacht.forwardSpringMooredTo = null;
     yacht.forwardSpringRestLength = null;
-    updateStatus(l10n?.statusForwardSpringReleased ?? 'Forward spring released');
+    //updateStatus(l10n?.statusForwardSpringReleased ?? 'Forward spring released');
+    _refreshMooringOverlay();
   }
 
   void releaseBackSpring() {
     yacht.backSpringMooredTo = null;
     yacht.backSpringRestLength = null;
-    updateStatus(l10n?.statusBackSpringReleased ?? 'Back spring released');
+    //updateStatus(l10n?.statusBackSpringReleased ?? 'Back spring released');
+    _refreshMooringOverlay();
   }
 
   void _performMooring({
@@ -481,6 +692,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       yacht.backSpringRestLength = yacht.backSpringWorldPosition.distanceTo(target);
       updateStatus(l10n?.statusBackSpringSecured ?? 'Back spring secured');
     }
+    _refreshMooringOverlay();
   }
 
   void resetGame() {
@@ -499,7 +711,7 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
       isRightHanded: _lastIsRightHanded,
     );
 
-    updateStatus(l10n?.statusLevelRestarted ?? 'Level Restarted');
+    //updateStatus(l10n?.statusLevelRestarted ?? 'Level Restarted');
   }
 
   void showMooringButtons(bool bow, bool stern, [bool forwardSpring = false, bool backSpring = false]) {
@@ -517,14 +729,80 @@ class YachtMasterGame extends FlameGame with HasKeyboardHandlerComponents, HasCo
     } else {
       overlays.remove('MooringMenu');
     }
+    mooringOverlayNotifier.notifyListeners();
+  }
+
+  void showMooringButtonsThreeLines(bool sternPort, bool sternStarboard, bool lazyLine) {
+    if (sternPortButtonActive == sternPort && sternStarboardButtonActive == sternStarboard &&
+        lazyLineButtonActive == lazyLine) return;
+
+    sternPortButtonActive = sternPort;
+    sternStarboardButtonActive = sternStarboard;
+    lazyLineButtonActive = lazyLine;
+
+    if (sternPortButtonActive || sternStarboardButtonActive || lazyLineButtonActive) {
+      overlays.remove('MooringMenu');
+      overlays.add('MooringMenu');
+    } else {
+      overlays.remove('MooringMenu');
+    }
+    mooringOverlayNotifier.notifyListeners();
   }
 
   void hideMooringButtons() {
-    if (!bowButtonActive && !sternButtonActive && !forwardSpringButtonActive && !backSpringButtonActive) return;
+    final bool anyActive = bowButtonActive || sternButtonActive ||
+        forwardSpringButtonActive || backSpringButtonActive ||
+        sternPortButtonActive || sternStarboardButtonActive || lazyLineButtonActive ||
+        anchorDropButtonActive || sternPortButtonActiveAnchor || sternStarboardButtonActiveAnchor;
+    if (!anyActive) return;
     overlays.remove('MooringMenu');
     bowButtonActive = false;
     sternButtonActive = false;
     forwardSpringButtonActive = false;
     backSpringButtonActive = false;
+    sternPortButtonActive = false;
+    sternStarboardButtonActive = false;
+    lazyLineButtonActive = false;
+    anchorDropButtonActive = false;
+    sternPortButtonActiveAnchor = false;
+    sternStarboardButtonActiveAnchor = false;
+    mooringOverlayNotifier.notifyListeners();
+  }
+
+  /// Проверяет, находится ли центр яхты в зоне сброса якоря.
+  bool isYachtInAnchorDropZone() {
+    if (anchorDropZoneCenterPixels == null) return false;
+    final double radiusPixels = Constants.anchorDropZoneRadiusMeters * Constants.pixelRatio;
+    return yacht.position.distanceTo(anchorDropZoneCenterPixels!) < radiusPixels;
+  }
+
+  /// Сбросить якорь (уровень 4). Фиксирует позицию якоря в текущей позиции носа.
+  void dropAnchor() {
+    if (yacht.isAnchorDropped) return;
+    if (!isYachtInAnchorDropZone()) {
+      updateStatus(l10n?.statusAnchorGetCloser ?? 'Enter the green zone to drop anchor');
+      return;
+    }
+    yacht.isAnchorDropped = true;
+    yacht.anchorPosition = yacht.bowTipWorldPosition.clone();
+    updateStatus(l10n?.statusAnchorDropped ?? 'Anchor dropped!');
+    _refreshMooringOverlay();
+  }
+
+  /// Управление кнопками швартовки для уровня 4 (якорь + 2 кормовых).
+  void showMooringButtonsAnchor(bool sternPort, bool sternStarboard, bool anchorDrop) {
+    if (sternPortButtonActiveAnchor == sternPort &&
+        sternStarboardButtonActiveAnchor == sternStarboard &&
+        anchorDropButtonActive == anchorDrop) return;
+    sternPortButtonActiveAnchor = sternPort;
+    sternStarboardButtonActiveAnchor = sternStarboard;
+    anchorDropButtonActive = anchorDrop;
+    if (sternPort || sternStarboard || anchorDrop) {
+      overlays.remove('MooringMenu');
+      overlays.add('MooringMenu');
+    } else {
+      overlays.remove('MooringMenu');
+    }
+    mooringOverlayNotifier.notifyListeners();
   }
 }

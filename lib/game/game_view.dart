@@ -2,6 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:yacht/generated/l10n/app_localizations.dart';
 import 'package:yacht/game/yacht_game.dart';
+import 'package:yacht/model/level_config.dart';
 import 'package:yacht/ui/level_selection_screen.dart';
 
 /// Виджет экрана игры с оверлеями (швартовка, проигрыш, победа).
@@ -20,7 +21,10 @@ class GameView extends StatelessWidget {
             key: const Key('yacht_game_widget'),
             game: game,
             overlayBuilderMap: {
-              'MooringMenu': (context, game) => MooringOverlay(game: game),
+              'MooringMenu': (context, game) => ListenableBuilder(
+                listenable: game.mooringOverlayNotifier,
+                builder: (context, _) => MooringOverlay(game: game),
+              ),
               'GameOver': (context, game) => GameOverOverlay(game: game),
               'Victory': (context, game) => VictoryOverlay(game: game),
             },
@@ -58,12 +62,53 @@ class MooringOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final yacht = game.yacht;
+    final bool threeLines = game.currentLevel?.mooringSetup.hasMooring == true;
+    final bool anchorMode = game.currentLevel?.mooringSetup.hasAnchor == true;
 
     Widget? button(bool active, String labelRelease, String labelSecure, bool isSecured, VoidCallback release, VoidCallback secure) {
       if (!active) return null;
       final label = isSecured ? labelRelease : labelSecure;
       final onPressed = isSecured ? release : secure;
       return _mooringButton(label, onPressed);
+    }
+
+    if (anchorMode) {
+      final col = <Widget?>[
+        if (game.anchorDropButtonActive && !yacht.isAnchorDropped)
+          _mooringButton(l10n.controlDropAnchor, game.dropAnchor),
+        button(game.sternPortButtonActiveAnchor, l10n.mooringGiveSternPort, l10n.mooringSternPort, yacht.sternPortMooredTo != null, game.releaseSternPort, game.moerSternPort),
+        button(game.sternStarboardButtonActiveAnchor, l10n.mooringGiveSternStarboard, l10n.mooringSternStarboard, yacht.sternStarboardMooredTo != null, game.releaseSternStarboard, game.moerSternStarboard),
+      ].whereType<Widget>().toList();
+      return Positioned(
+        bottom: 24,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: col.map((b) => Padding(padding: const EdgeInsets.only(bottom: 8), child: b)).toList(),
+          ),
+        ),
+      );
+    }
+
+    if (threeLines) {
+      final col1 = <Widget?>[
+        button(game.sternPortButtonActive, l10n.mooringGiveSternPort, l10n.mooringSternPort, yacht.sternPortMooredTo != null, game.releaseSternPort, game.moerSternPort),
+        button(game.sternStarboardButtonActive, l10n.mooringGiveSternStarboard, l10n.mooringSternStarboard, yacht.sternStarboardMooredTo != null, game.releaseSternStarboard, game.moerSternStarboard),
+        button(game.lazyLineButtonActive, l10n.mooringGiveLazyLine, l10n.mooringLazyLine, yacht.lazyLineAnchor != null, game.releaseLazyLine, game.moerLazyLine),
+      ].whereType<Widget>().toList();
+      return Positioned(
+        bottom: 24,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: col1.map((b) => Padding(padding: const EdgeInsets.only(bottom: 8), child: b)).toList(),
+          ),
+        ),
+      );
     }
 
     final sternCol = <Widget?>[

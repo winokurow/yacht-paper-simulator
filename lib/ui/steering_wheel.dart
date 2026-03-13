@@ -9,6 +9,9 @@ class SteeringWheel extends SpriteComponent
 
   double _visualAngle = 0.0;
   bool _isDragging = false;
+  /// Текущая позиция пальца в локальных координатах (накапливаем localDelta, т.к. DragUpdateEvent не даёт localPosition).
+  Vector2 _dragCurrentPosition = Vector2.zero();
+
   SteeringWheel({required Vector2 position}) : super(
     position: position,
     size: Vector2(280, 280), // Размер области штурвала
@@ -31,7 +34,8 @@ class SteeringWheel extends SpriteComponent
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
-    _isDragging = true; // Захватываем управление
+    _isDragging = true;
+    _dragCurrentPosition = event.localPosition.clone();
   }
 
   @override
@@ -47,14 +51,18 @@ class SteeringWheel extends SpriteComponent
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
-    // Вычисляем вектор от центра штурвала до точки касания
+    // В DragUpdateEvent нет localPosition — накапливаем localDelta от начала жеста.
+    _dragCurrentPosition.add(event.localDelta);
+
     final center = size / 2;
-    final delta = event.localStartPosition - center;
+    final delta = _dragCurrentPosition - center;
+    final double dist = delta.length;
+    if (dist < 20) return;
 
-    // Рассчитываем угол. Добавляем pi/2, чтобы "верх" был нулевой точкой
-    double targetAngle = atan2(delta.y, delta.x) + pi / 2;
+    // Угол от «12 часов» (вверх), по часовой = вправо, против = влево.
+    // atan2(dx, -dy): вверх→0, вправо→+π/2, влево→-π/2, вниз→±π.
+    double targetAngle = atan2(delta.x, -delta.y);
 
-    // Ограничиваем поворот (например, 90 градусов в каждую сторону)
     _visualAngle = targetAngle.clamp(-pi / 2, pi / 2);
     if (_visualAngle.abs() < 0.08) {
       _visualAngle = 0;

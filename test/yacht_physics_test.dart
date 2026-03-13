@@ -94,6 +94,62 @@ void main() {
       });
     });
 
+    group('Муринг (ленивый конец)', () {
+      test('lazyLineTension при растянутой линии даёт ненулевое ускорение от носа к якорю', () {
+        final anchorWorld = Vector2(0.0, 100.0 * Constants.pixelRatio);
+        final bowWorld = Vector2(0.0, 80.0 * Constants.pixelRatio);
+        final restLengthPixels = 15.0 * Constants.pixelRatio;
+        final (Vector2 accel, double damping) = YachtPhysics.lazyLineTension(
+          anchorWorld,
+          bowWorld,
+          restLengthPixels,
+          Constants.yachtMass,
+          1 / 60.0,
+        );
+        expect(accel.length, greaterThan(0), reason: 'Линия растянута — натяжение есть');
+        expect(accel.y, greaterThan(0), reason: 'Сила тянет нос к якорю (вперёд, +Y)');
+        expect(damping, lessThan(1.0), reason: 'При натяжении включается демпфирование');
+      });
+
+      test('Закреплённый муринг ограничивает движение кормой назад (скорость к причалу гасится)', () {
+        final anchorWorld = Vector2(0.0, 120.0 * Constants.pixelRatio);
+        double bowY = 100.0 * Constants.pixelRatio;
+        final restLengthPixels = 20.0 * Constants.pixelRatio;
+        Vector2 velocity = Vector2(0.0, -2.0 * Constants.pixelRatio);
+        const double dt = 1 / 60.0;
+        for (var i = 0; i < 60; i++) {
+          final bowWorld = Vector2(0.0, bowY);
+          final (Vector2 accel, double damping) = YachtPhysics.lazyLineTension(
+            anchorWorld,
+            bowWorld,
+            restLengthPixels,
+            Constants.yachtMass,
+            dt,
+          );
+          velocity += accel;
+          velocity *= damping;
+          bowY += velocity.y * dt;
+        }
+        expect(velocity.y, greaterThan(-1.5 * Constants.pixelRatio),
+            reason: 'Скорость к причалу (отрицательная Y) ограничена натяжением муринга');
+      });
+
+      test('lazyLineTension при длине меньше restLength возвращает нулевое ускорение', () {
+        final anchorWorld = Vector2(0.0, 100.0);
+        final bowWorld = Vector2(0.0, 95.0);
+        final restLengthPixels = 20.0;
+        final (Vector2 accel, double damping) = YachtPhysics.lazyLineTension(
+          anchorWorld,
+          bowWorld,
+          restLengthPixels,
+          Constants.yachtMass,
+          1 / 60.0,
+        );
+        expect(accel.length, equals(0.0));
+        expect(damping, equals(1.0));
+      });
+    });
+
     group('stop (мгновенная остановка)', () {
       test('stop вызывает setVelocities с нулевыми значениями', () {
         Vector2? capturedV;

@@ -29,12 +29,31 @@ class RopeRenderer extends Component with HasGameReference<YachtMasterGame> {
     if (yacht.backSpringMooredTo != null) {
       _drawRope(canvas, yacht.backSpringWorldPosition, yacht.backSpringMooredTo!, isSpring: true);
     }
+    if (yacht.sternPortMooredTo != null) {
+      _drawRope(canvas, yacht.sternLeftWorld, yacht.sternPortMooredTo!, isSpring: false);
+    }
+    if (yacht.sternStarboardMooredTo != null) {
+      _drawRope(canvas, yacht.sternRightWorld, yacht.sternStarboardMooredTo!, isSpring: false);
+    }
+    if (yacht.lazyLineAnchor != null) {
+      _drawRope(canvas, yacht.bowTipWorldPosition, yacht.lazyLineAnchor!, isSpring: false);
+    }
+    if (yacht.isAnchorDropped && yacht.anchorPosition != null) {
+      _drawAnchorChain(canvas, yacht.bowTipWorldPosition, yacht.anchorPosition!);
+    }
   }
 
   void _drawRope(Canvas canvas, Vector2 fromWorld, Vector2 toWorld, {bool isSpring = false}) {
     final Vector2 delta = toWorld - fromWorld;
-    final double dist = delta.length;
-    if (dist < 1e-6) return;
+    double dist = delta.length;
+    // При нулевой длине (нос на якоре) рисуем короткий отрезок, чтобы муринг был виден.
+    if (dist < 2.0) {
+      dist = 2.0;
+      final Vector2 dir = delta.length > 1e-6 ? delta.normalized() : Vector2(1.0, 0.0);
+      final Vector2 toWorldAdjusted = fromWorld + dir * 2.0;
+      _drawRopeSegment(canvas, fromWorld, toWorldAdjusted, isSpring);
+      return;
+    }
 
     final Vector2 along = delta / dist;
     final Vector2 perp = Vector2(-along.y, along.x);
@@ -54,7 +73,31 @@ class RopeRenderer extends Component with HasGameReference<YachtMasterGame> {
     final bool drawSag = !isSpring &&
         dist >= Constants.ropeMinLengthForSagPixels &&
         dist < sagThreshold;
-    if (drawSag) {
+    _drawRopeSegment(canvas, from, to, isSpring, drawSag: drawSag, sagThreshold: sagThreshold, dist: dist);
+  }
+
+  /// Якорная цепь: серая при нормальном натяжении, красная при максимальном.
+  void _drawAnchorChain(Canvas canvas, Vector2 bowWorld, Vector2 anchorWorld) {
+    final double maxChainPixels = Constants.anchorChainMaxLengthMeters * Constants.pixelRatio;
+    final double dist = bowWorld.distanceTo(anchorWorld);
+    final double ratio = dist / maxChainPixels;
+    final Color chainColor = ratio >= Constants.anchorChainTensionWarningRatio
+        ? const Color(0xFFD32F2F)
+        : const Color(0xFF757575);
+    final paint = Paint()
+      ..color = chainColor
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(bowWorld.toOffset(), anchorWorld.toOffset(), paint);
+  }
+
+  void _drawRopeSegment(Canvas canvas, Vector2 from, Vector2 to, bool isSpring,
+      {bool drawSag = false, double sagThreshold = 0, double dist = 0}) {
+    final paint = Paint()
+      ..color = isSpring ? const Color(0xFF8D6E63) : const Color(0xFF5D4037)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    if (drawSag && dist >= Constants.ropeMinLengthForSagPixels && dist < sagThreshold) {
       final midX = (from.x + to.x) / 2;
       final midY = (from.y + to.y) / 2;
       final sag = (sagThreshold - dist) * Constants.ropeSagFactor;

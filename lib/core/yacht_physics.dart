@@ -89,6 +89,32 @@ class YachtPhysics {
     return tension.clamp(0.0, Constants.maxLineTensionPixels);
   }
 
+  /// Муринг (ленивый конец): натяжение от якоря к носу. Тянет яхту вперёд (от причала).
+  /// [anchorWorld] — позиция «мёртвого якоря» в мире (пиксели), [bowWorld] — точка крепления на носу.
+  /// Возвращает (ускорение, демпфирование). Использует [Constants.lazyLineTensionLinear/Quadratic].
+  static (Vector2 acceleration, double velocityDamping) lazyLineTension(
+    Vector2 anchorWorld,
+    Vector2 bowWorld,
+    double restLengthPixels,
+    double yachtMass,
+    double dt,
+  ) {
+    Vector2 rope = anchorWorld - bowWorld;
+    double currentLength = rope.length;
+    if (currentLength <= restLengthPixels) return (Vector2.zero(), 1.0);
+    double strainPixels = currentLength - restLengthPixels;
+    Vector2 dir = rope.normalized();
+    double tension = (strainPixels * Constants.lazyLineTensionLinear +
+            strainPixels * strainPixels * Constants.lazyLineTensionQuadratic)
+        .clamp(0.0, Constants.maxLineTensionPixels);
+    Vector2 accel = dir * (tension / yachtMass) * dt * Constants.mooringAccelScale;
+    double damping = Constants.mooringDampingLight;
+    if (restLengthPixels > 0 && strainPixels > restLengthPixels * Constants.mooringStrainRatioForStrongDamping) {
+      damping = Constants.mooringDampingStrong;
+    }
+    return (accel, damping);
+  }
+
   /// Натяжение шпринга: только продольная компонента (вдоль [forwardDir]).
   /// Ограничивает движение вперёд/назад, позволяет яхте разворачиваться от причала.
   static (Vector2 acceleration, double velocityDamping) mooringSpringLongitudinal(
@@ -107,6 +133,32 @@ class YachtPhysics {
     double damping = Constants.mooringDampingLight;
     if (restLengthPixels > 0 && strainPixels > restLengthPixels * Constants.mooringStrainRatioForStrongDamping) {
       damping = Constants.mooringDampingStrong;
+    }
+    return (accel, damping);
+  }
+
+  /// Натяжение якорной цепи: тянет нос яхты к точке якоря, если расстояние превышает [maxChainLengthPixels].
+  /// Аналог [lazyLineTension], но с отдельными константами для цепи.
+  static (Vector2 acceleration, double velocityDamping) anchorChainTension(
+    Vector2 anchorWorld,
+    Vector2 bowWorld,
+    double maxChainLengthPixels,
+    double yachtMass,
+    double dt,
+  ) {
+    final Vector2 rope = anchorWorld - bowWorld;
+    final double currentLength = rope.length;
+    if (currentLength <= maxChainLengthPixels) return (Vector2.zero(), 1.0);
+    final double strainPixels = currentLength - maxChainLengthPixels;
+    final Vector2 dir = rope.normalized();
+    final double tension = (strainPixels * Constants.anchorChainTensionLinear +
+            strainPixels * strainPixels * Constants.anchorChainTensionQuadratic)
+        .clamp(0.0, Constants.anchorChainMaxTensionPixels);
+    final Vector2 accel = dir * (tension / yachtMass) * dt * Constants.mooringAccelScale;
+    double damping = Constants.anchorChainDampingLight;
+    if (maxChainLengthPixels > 0 &&
+        strainPixels > maxChainLengthPixels * Constants.anchorChainStrainRatioForStrongDamping) {
+      damping = Constants.anchorChainDampingStrong;
     }
     return (accel, damping);
   }
@@ -176,6 +228,8 @@ class YachtEnvironment {
   final double currentDirection;
   final double distanceToDockPixels;
   final bool isTouchingDock;
+  /// Контакт с другой яхтой (MooredYacht): при true prop walk не применяется, чтобы не входить в корпус.
+  final bool isTouchingOtherYacht;
 
   const YachtEnvironment({
     this.windSpeed = 0,
@@ -184,6 +238,7 @@ class YachtEnvironment {
     this.currentDirection = 0,
     this.distanceToDockPixels = double.infinity,
     this.isTouchingDock = false,
+    this.isTouchingOtherYacht = false,
   });
 }
 
@@ -253,10 +308,16 @@ class YachtDynamics {
     // 6. Вращение: момент руля (с учётом радиуса разворота) + prop walk; угловое трение
     double propWalk = YachtPhysics.propWalkTorque(throttle, speedMeters);
     if (env.isTouchingDock ||
+        env.isTouchingOtherYacht ||
         (throttle < 0 && env.distanceToDockPixels < Constants.propWalkSuppressDistanceToDockPixels)) {
       propWalk = 0;
     }
-    double totalTorque = YachtPhysics.rudderTorque(rudderAngle, speedMeters, throttle) + propWalk;
+    double rudderTq = YachtPhysics.rudderTorque(rudderAngle, speedMeters, throttle);
+    if (throttle < 0) {
+      // На заднем ходе руль действует наоборот (поток с кормы) и слабее
+      rudderTq = YachtPhysics.rudderTorque(-rudderAngle, speedMeters, throttle) * Constants.rudderReverseEffectiveness;
+    }
+    double totalTorque = rudderTq + propWalk;
     double angularVelocity = state.angularVelocity + (totalTorque / Constants.yachtInertia) * dt;
     angularVelocity *= (1.0 - (Constants.angularDrag * dt)).clamp(0.0, 1.0);
     angularVelocity = angularVelocity.clamp(-Constants.maxAngularVelocity, Constants.maxAngularVelocity);
