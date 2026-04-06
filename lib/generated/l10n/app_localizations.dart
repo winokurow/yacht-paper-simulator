@@ -663,6 +663,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Anchor dropped!'**
   String get statusAnchorDropped;
+
+  /// No description provided for @level5Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Baltic Mooring'**
+  String get level5Name;
+
+  /// No description provided for @level5Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Moor bow-first between four piles, then secure bow lines to the dock.'**
+  String get level5Description;
+
+  /// No description provided for @mooringAftPilePort.
+  ///
+  /// In en, this message translates to:
+  /// **'AFT PORT PILE'**
+  String get mooringAftPilePort;
+
+  /// No description provided for @mooringAftPileStarboard.
+  ///
+  /// In en, this message translates to:
+  /// **'AFT STBD PILE'**
+  String get mooringAftPileStarboard;
+
+  /// No description provided for @mooringBowPort.
+  ///
+  /// In en, this message translates to:
+  /// **'BOW PORT'**
+  String get mooringBowPort;
+
+  /// No description provided for @mooringBowStarboard.
+  ///
+  /// In en, this message translates to:
+  /// **'BOW STARBOARD'**
+  String get mooringBowStarboard;
+
+  /// No description provided for @mooringGiveAftPilePort.
+  ///
+  /// In en, this message translates to:
+  /// **'Release aft port pile'**
+  String get mooringGiveAftPilePort;
+
+  /// No description provided for @mooringGiveAftPileStarboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Release aft stbd pile'**
+  String get mooringGiveAftPileStarboard;
+
+  /// No description provided for @mooringGiveBowPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Release bow port'**
+  String get mooringGiveBowPort;
+
+  /// No description provided for @mooringGiveBowStarboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Release bow starboard'**
+  String get mooringGiveBowStarboard;
+
+  /// No description provided for @level6Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrow Alongside'**
+  String get level6Name;
+
+  /// No description provided for @level6Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate a tight channel lined with moored yachts and park alongside.'**
+  String get level6Description;
+
+  /// No description provided for @level7Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrow Stern-to Mooring'**
+  String get level7Name;
+
+  /// No description provided for @level7Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Thread the channel and moor stern-to with a mooring line. Strong side wind.'**
+  String get level7Description;
+
+  /// No description provided for @level8Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrow Stern-to Anchor'**
+  String get level8Name;
+
+  /// No description provided for @level8Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop anchor in the channel, then reverse to the pier and secure two stern lines.'**
+  String get level8Description;
+
+  /// No description provided for @level9Name.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrow Baltic Mooring'**
+  String get level9Name;
+
+  /// No description provided for @level9Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a narrow channel bow-first and secure all four lines to the piles.'**
+  String get level9Description;
+
+  /// No description provided for @levelInstructionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Level briefing'**
+  String get levelInstructionTitle;
+
+  /// No description provided for @levelInstructionTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Instructions for this level'**
+  String get levelInstructionTooltip;
+
+  /// No description provided for @levelInstruction1.
+  ///
+  /// In en, this message translates to:
+  /// **'• W/S — throttle, A/D — rudder.\n• Move into the green berth between moored yachts and stop with bow and stern near the bollards.\n• When the buttons appear, give bow and stern lines.\n• Win: both lines secured and low speed.'**
+  String get levelInstruction1;
+
+  /// No description provided for @levelInstruction2.
+  ///
+  /// In en, this message translates to:
+  /// **'• You start with four lines already made fast.\n• Release bow, stern, and both springs when you are ready to depart.\n• Win: all lines are free and the yacht has left the green zone.'**
+  String get levelInstruction2;
+
+  /// No description provided for @levelInstruction3.
+  ///
+  /// In en, this message translates to:
+  /// **'• Stern-to: approach the pier astern; the mooring buoy lies opposite the green zone.\n• Secure stern port and stern starboard, then the lazy line to the buoy.\n• Win: both stern lines and the lazy line secured, correct heading, nearly stopped.'**
+  String get levelInstruction3;
+
+  /// No description provided for @levelInstruction4.
+  ///
+  /// In en, this message translates to:
+  /// **'• Enter the green anchor circle and drop anchor when prompted.\n• Back toward the pier and secure two stern lines to the bollards.\n• Win: anchor down, both stern lines fast, correct heading, low speed.'**
+  String get levelInstruction4;
+
+  /// No description provided for @levelInstruction5.
+  ///
+  /// In en, this message translates to:
+  /// **'• Bow-first between the four piles. Aft lines to the aft piles; bow lines to the dock bollards.\n• Typical order: aft port and starboard, then bow port and starboard.\n• Win: all four lines, bow perpendicular to the dock, stopped.'**
+  String get levelInstruction5;
+
+  /// No description provided for @levelInstruction6.
+  ///
+  /// In en, this message translates to:
+  /// **'• Thread the narrow channel without hitting moored yachts.\n• Park alongside the right finger; the green rectangle is your berth.\n• Win: bow and stern lines secured, low speed.'**
+  String get levelInstruction6;
+
+  /// No description provided for @levelInstruction7.
+  ///
+  /// In en, this message translates to:
+  /// **'• Pass the channel, then reverse stern-to to the right finger.\n• Mooring buoy mirrors the green zone; stern lines first, then the lazy line to the buoy.\n• Win: both sterns and lazy line secured, heading and speed in range.'**
+  String get levelInstruction7;
+
+  /// No description provided for @levelInstruction8.
+  ///
+  /// In en, this message translates to:
+  /// **'• Drop anchor inside the green ring in the channel, then reverse to the pier.\n• Two stern lines: port to the lower bollard, starboard to the upper (along the finger).\n• Win: anchor down, both sterns fast, correct heading, stopped.'**
+  String get levelInstruction8;
+
+  /// No description provided for @levelInstruction9.
+  ///
+  /// In en, this message translates to:
+  /// **'• Bow-first into the slot; four piles sit at the green zone corners — do not ram them.\n• Aft lines to the channel-side piles, bow lines to the pier-side piles.\n• Win: all four lines, bow toward the finger, stopped.'**
+  String get levelInstruction9;
 }
 
 class _AppLocalizationsDelegate

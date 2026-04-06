@@ -4,6 +4,12 @@ class Constants {
   // 1 метр = 10 пикселей. Это значит, что лодка длиной 12м = 120 пикселей.
   static const double pixelRatio = 25.0;
 
+  // --- ОТРИСОВКА (Flame priority: больше — выше слой) ---
+  /// Сваи Baltic: ниже яхты игрока, чтобы корпус не «уезжал под» столбы в плане.
+  static const int renderPriorityPile = 1;
+  /// Яхта игрока: выше свай и маркеров причала, ниже канатов и чужих яхт.
+  static const int renderPriorityPlayerYacht = 2;
+
   // --- ФИЗИКА (Приведенная к реальности) ---
   // Для 5-тонной яхты (5000 кг)
   static const double yachtMass = 2500.0;
@@ -78,6 +84,8 @@ class Constants {
   static const double mooringBollardProximityPixels = 3.5 * pixelRatio;
   /// Дистанция до якоря муринга (пиксели). Чуть больше, чем до тумбы, чтобы кнопка срабатывала уверенно.
   static const double mooringAnchorProximityPixels = 5.0 * pixelRatio;
+  /// Дистанция до сваи (пиксели), в пределах которой доступна швартовка на Baltic (уровень 5).
+  static const double pileMooringProximityPixels = 8.0 * pixelRatio;
   /// Макс. скорость (пиксели/кадр) для показа кнопок швартовки.
   static const double mooringSpeedThresholdPixels = 1.2 * pixelRatio;
   /// Радиус отображаемой точки якоря муринга (пиксели).
@@ -151,9 +159,11 @@ class Constants {
   /// Доля длины цепи, выше которой включается сильное демпфирование.
   static const double anchorChainStrainRatioForStrongDamping = 0.15;
   /// Радиус зоны сброса якоря (метры). Яхта должна быть в пределах этого радиуса от центра зоны.
-  static const double anchorDropZoneRadiusMeters = 20.0;
-  /// Радиус маркера зоны сброса якоря (пиксели) для отрисовки.
-  static const double anchorDropZoneMarkerRadiusPixels = 20.0 * pixelRatio;
+  static const double anchorDropZoneRadiusMeters = 10.0;
+  /// Радиус зоны сброса якоря в пикселях (совпадает с [anchorDropZoneRadiusMeters] × [pixelRatio]).
+  static const double anchorDropZoneRadiusPixels = anchorDropZoneRadiusMeters * pixelRatio;
+  /// Центральная точка зоны сброса якоря на карте (пиксели) — компактная заливка, без огромного диска.
+  static const double anchorDropZoneCenterMarkerRadiusPixels = 14.0;
   /// Порог натяжения цепи (доля от maxLength), выше которого цепь рисуется красной.
   static const double anchorChainTensionWarningRatio = 0.85;
   /// Макс. шагов субстеппинга интеграции.
@@ -199,4 +209,62 @@ class Constants {
   static const double ropeSagFactor = 0.4;
   /// Минимальная длина каната (пиксели), при которой рисуется провисание; иначе — прямая (чтобы у причала все концы были видны).
   static const double ropeMinLengthForSagPixels = 8.0;
+
+  // --- СВАИ (Baltic style, уровень 5) ---
+  /// Радиус сваи (пиксели).
+  static const double pileRadiusPixels = 0.5 * pixelRatio;
+
+  // --- NARROW MARINA (уровни 6–9) ---
+  /// Полуширина канала для alongside (ур. 6, лагом). Итого ширина прохода = 2 × значение.
+  static const double narrowChannelHalfGapMeters = 6.0;
+  /// Полуширина канала для nose-to (ур. 7–8, носом к причалу) — шире, т.к. яхты занимают длину в канале.
+  static const double narrowChannelNoseToHalfGapMeters = 14.0;
+  /// Полуширина канала nose-to только для ур. 9 (шире проход между понтонами).
+  static const double narrowMarinaLevel9NoseToHalfGapMeters = 22.0;
+
+  /// Полуширина канала (м) для узкой марины: alongside / nose-to по уровню.
+  static double narrowChannelHalfGapMetersForLevel({
+    required bool isAlongsideSetup,
+    required int levelId,
+  }) {
+    if (isAlongsideSetup) return narrowChannelHalfGapMeters;
+    if (levelId == 9) return narrowMarinaLevel9NoseToHalfGapMeters;
+    return narrowChannelNoseToHalfGapMeters;
+  }
+  /// Количество яхт-препятствий на каждой стороне канала для alongside (ур. 6).
+  static const int narrowChannelObstacleCount = 5;
+  /// Количество яхт-препятствий на каждой стороне канала для nose-to (ур. 7–9).
+  static const int narrowChannelNoseToObstacleCount = 8;
+  /// Расстояние между центрами яхт вдоль понтона для alongside (ур. 6), метры.
+  static const double narrowChannelObstacleSpacingMeters = 14.0;
+  /// Расстояние между центрами яхт вдоль понтона для nose-to (ур. 7–9), метры.
+  static const double narrowChannelNoseToObstacleSpacingMeters = 9.0;
+  /// Смещение первой яхты от нижнего края причала (метры).
+  static const double narrowChannelFirstObstacleOffsetMeters = 5.0;
+  /// Ширина бокового понтона (finger dock) в узкой марине (метры).
+  static const double narrowChannelDockWidthMeters = 10.0;
+  /// Длина бокового понтона в узкой марине (метры) — от основного причала вниз по каналу.
+  static const double narrowChannelDockLengthMeters = 70.0;
+  /// Зазор между внутренней кромкой понтона и краем прохода (метры).
+  static const double narrowChannelBoatZoneDepthMeters = 4.5;
+  /// Запас (пиксели) при проверке пересечения препятствий с зелёной зоной швартовки (6–9).
+  static const double narrowChannelGreenZoneObstaclePaddingPixels = 0.0;
+  /// Ширина зелёной зоны узкой марины (6–9) в «ширинах яхты» — компактнее общего [greenZoneWidthInYachtWidths].
+  static const double narrowMarinaGreenZoneWidthYachtWidths = 1.2;
+  /// Высота зелёной зоны узкой марины: доля длины яхты ([YachtPlayer.size.x]).
+  static const double narrowMarinaGreenZoneLengthFactor = 1.0;
+  /// Уровень 6 (alongside у правого понтона): увеличенная длина зелёной зоны по сравнению с [narrowMarinaGreenZoneLengthFactor].
+  static const double narrowMarinaLevel6GreenZoneLengthFactor = 1.35;
+  /// Уровни 7–9 (nose-to): ширина зелёной зоны как доля длины яхты.
+  static const double narrowMarinaNoseToGreenZoneLengthFactor = 1.2;
+  /// Уровни 7–8 (nose-to): высота зелёной зоны в «ширинах яхты» (ось Y прямоугольника на понтоне).
+  static const double narrowMarinaNoseToGreenZoneWidthYachtWidths = 1.4;
+  /// Уровень 9: во сколько раз шире зона по той же оси, чем у ур. 7–8 (поверх [narrowMarinaNoseToGreenZoneWidthYachtWidths]).
+  static const double narrowMarinaLevel9GreenZoneWidthScale = 1.5;
+  /// Уровни 7–9 (nose-to): смещение зоны причаливания вверх (пиксели в мировых координатах).
+  static const double narrowMarinaNoseToGreenZoneOffsetUpPixels = 30.0;
+  /// Узкая марина: коэффициент для X точки напротив зелёной зоны (буй муринга ур. 7, зона якоря ур. 8)
+  /// `k * slotCenterX - greenZoneCenterX`. При 2.0 — зеркало центра зелёной зоны относительно оси слота;
+  /// меньшие значения сдвигают точку дальше в противоположную от причала сторону.
+  static const double narrowMarinaLevel7MooringAnchorGreenZoneXFactor = 2.05;
 }

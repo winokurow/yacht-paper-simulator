@@ -41,6 +41,13 @@ class RopeRenderer extends Component with HasGameReference<YachtMasterGame> {
     if (yacht.isAnchorDropped && yacht.anchorPosition != null) {
       _drawAnchorChain(canvas, yacht.bowTipWorldPosition, yacht.anchorPosition!);
     }
+    // Baltic style: 4 швартовых к сваям (2 кормовых + 2 носовых).
+    if (yacht.balticBowPortMooredTo != null) {
+      _drawRope(canvas, yacht.bowPortWorld, yacht.balticBowPortMooredTo!, isSpring: false);
+    }
+    if (yacht.balticBowStarboardMooredTo != null) {
+      _drawRope(canvas, yacht.bowStarboardWorld, yacht.balticBowStarboardMooredTo!, isSpring: false);
+    }
   }
 
   void _drawRope(Canvas canvas, Vector2 fromWorld, Vector2 toWorld, {bool isSpring = false}) {

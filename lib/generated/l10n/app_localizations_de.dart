@@ -300,4 +300,105 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get statusAnchorDropped => 'Anker geworfen!';
+
+  @override
+  String get level5Name => 'Ostsee-Anlegen';
+
+  @override
+  String get level5Description =>
+      'Bug voraus zwischen vier Dalben einfahren und Bugleinen am Steg festmachen.';
+
+  @override
+  String get mooringAftPilePort => 'HECK BB DALBEN';
+
+  @override
+  String get mooringAftPileStarboard => 'HECK STB DALBEN';
+
+  @override
+  String get mooringBowPort => 'BUG BACKBORD';
+
+  @override
+  String get mooringBowStarboard => 'BUG STEUERBORD';
+
+  @override
+  String get mooringGiveAftPilePort => 'Heck Bb Dalben los';
+
+  @override
+  String get mooringGiveAftPileStarboard => 'Heck Stb Dalben los';
+
+  @override
+  String get mooringGiveBowPort => 'Bug Backbord los';
+
+  @override
+  String get mooringGiveBowStarboard => 'Bug Steuerbord los';
+
+  @override
+  String get level6Name => 'Enge Marina — Längsseits';
+
+  @override
+  String get level6Description =>
+      'Navigieren Sie durch einen engen Kanal und legen Sie längsseits an.';
+
+  @override
+  String get level7Name => 'Enge Marina — Heck-an mit Mooring';
+
+  @override
+  String get level7Description =>
+      'Durchfahren Sie den Kanal und legen Sie Heck-an mit Mooring-Leine an. Starker Seitenwind.';
+
+  @override
+  String get level8Name => 'Enge Marina — Heck-an mit Anker';
+
+  @override
+  String get level8Description =>
+      'Anker im Kanal werfen, rückwärts zum Steg und zwei Heckleinen festmachen.';
+
+  @override
+  String get level9Name => 'Enge Marina — Ostsee-Anlegen';
+
+  @override
+  String get level9Description =>
+      'Bug voraus in den engen Kanal einfahren und alle vier Leinen an Dalben festmachen.';
+
+  @override
+  String get levelInstructionTitle => 'Level-Briefing';
+
+  @override
+  String get levelInstructionTooltip => 'Anleitung zu diesem Level';
+
+  @override
+  String get levelInstruction1 =>
+      '• W/S — Gas, A/D — Ruder.\n• In die grüne Liegeplatz-Markierung zwischen den Yachten fahren und mit Bug und Heck an den Pollern stoppen.\n• Wenn die Tasten erscheinen, Bug- und Heckleinen geben.\n• Sieg: beide Leinen fest, geringe Fahrt.';
+
+  @override
+  String get levelInstruction2 =>
+      '• Start mit vier bereits festen Leinen.\n• Bug, Heck und beide Springer loswerfen, wenn Sie ablegen wollen.\n• Sieg: alle Leinen frei und die Yacht hat die grüne Zone verlassen.';
+
+  @override
+  String get levelInstruction3 =>
+      '• Heck-an: die Mooring-Boje liegt gegenüber der grünen Zone.\n• Heck Backbord und Steuerbord festmachen, dann die Lazy Line zur Boje.\n• Sieg: beide Heckleinen und Mooring, richtiger Kurs, fast Stillstand.';
+
+  @override
+  String get levelInstruction4 =>
+      '• In den grünen Ankerkreis fahren und Anker werfen, wenn die Taste aktiv ist.\n• Rückwärts zum Steg und zwei Heckleinen an die Pollern.\n• Sieg: Anker aus, beide Heckleinen, Kurs, geringe Fahrt.';
+
+  @override
+  String get levelInstruction5 =>
+      '• Bug voraus zwischen vier Dalben; Heck an die hinteren Dalben, Bug an die Steg-Pollern.\n• Üblich: zuerst Heck, dann Bug.\n• Sieg: vier Leinen, Bug rechtwinklig zum Steg, Stillstand.';
+
+  @override
+  String get levelInstruction6 =>
+      '• Durch den engen Kanal ohne Kollision mit liegenden Yachten.\n• Längsseits am rechten Steg; das grüne Rechteck ist die Liege.\n• Sieg: Bug- und Heckleine fest, geringe Fahrt.';
+
+  @override
+  String get levelInstruction7 =>
+      '• Kanal durchfahren, dann Heck-an zum rechten Steg.\n• Mooring-Boje spiegelt die grüne Zone; zuerst Heckleinen, dann Lazy Line.\n• Sieg: beide Heckleinen und Mooring, Kurs und Fahrt im Rahmen.';
+
+  @override
+  String get levelInstruction8 =>
+      '• Anker im grünen Ring im Kanal werfen, dann rückwärts zum Steg.\n• Zwei Heckleinen: Backbord zum unteren Poller, Steuerbord zum oberen entlang des Fingers.\n• Sieg: Anker, beide Heckleinen, Kurs, Stillstand.';
+
+  @override
+  String get levelInstruction9 =>
+      '• Bug voraus in die Box; vier Dalben an den Ecken der grünen Zone — nicht anfahren.\n• Heck an die kanalseitigen Dalben, Bug an die stegsseitigen.\n• Sieg: vier Leinen, Bug zum Finger, Stillstand.';
 }

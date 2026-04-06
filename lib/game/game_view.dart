@@ -13,7 +13,8 @@ class GameView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    game.l10n = AppLocalizations.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    game.l10n = l10n;
     return Scaffold(
       body: Stack(
         children: [
@@ -35,14 +36,69 @@ class GameView extends StatelessWidget {
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFFE0C9A6),
-                    foregroundColor: const Color(0xFF5D4037),
-                    padding: const EdgeInsets.all(12),
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: l10n.levelInstructionTooltip,
+                      onPressed: () {
+                        final LevelConfig? level = game.currentLevel;
+                        if (level == null) return;
+                        showDialog<void>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: const Color(0xFFE0C9A6),
+                            title: Text(
+                              l10n.levelInstructionTitle,
+                              style: const TextStyle(
+                                color: Color(0xFF3E2723),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            content: SingleChildScrollView(
+                              child: Text(
+                                levelLocalizedInstruction(l10n, level),
+                                style: TextStyle(
+                                  color: Colors.brown.shade900,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: Text(l10n.cancel),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFFE0C9A6),
+                        foregroundColor: const Color(0xFF5D4037),
+                        padding: const EdgeInsets.all(12),
+                      ),
+                      icon: const Text(
+                        'i',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: l10n.buttonBack,
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFFE0C9A6),
+                        foregroundColor: const Color(0xFF5D4037),
+                        padding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -64,12 +120,41 @@ class MooringOverlay extends StatelessWidget {
     final yacht = game.yacht;
     final bool threeLines = game.currentLevel?.mooringSetup.hasMooring == true;
     final bool anchorMode = game.currentLevel?.mooringSetup.hasAnchor == true;
+    final bool balticMode = game.currentLevel?.mooringSetup.isBaltic == true;
 
     Widget? button(bool active, String labelRelease, String labelSecure, bool isSecured, VoidCallback release, VoidCallback secure) {
       if (!active) return null;
       final label = isSecured ? labelRelease : labelSecure;
       final onPressed = isSecured ? release : secure;
       return _mooringButton(label, onPressed);
+    }
+
+    if (balticMode) {
+      final aftCol = <Widget?>[
+        button(game.balticAftPortActive, l10n.mooringGiveAftPilePort, l10n.mooringAftPilePort, yacht.sternPortMooredTo != null, game.releaseBalticAftPort, game.moerBalticAftPort),
+        button(game.balticAftStarboardActive, l10n.mooringGiveAftPileStarboard, l10n.mooringAftPileStarboard, yacht.sternStarboardMooredTo != null, game.releaseBalticAftStarboard, game.moerBalticAftStarboard),
+      ].whereType<Widget>().toList();
+      final bowCol = <Widget?>[
+        button(game.balticBowPortActive, l10n.mooringGiveBowPort, l10n.mooringBowPort, yacht.balticBowPortMooredTo != null, game.releaseBalticBowPort, game.moerBalticBowPort),
+        button(game.balticBowStarboardActive, l10n.mooringGiveBowStarboard, l10n.mooringBowStarboard, yacht.balticBowStarboardMooredTo != null, game.releaseBalticBowStarboard, game.moerBalticBowStarboard),
+      ].whereType<Widget>().toList();
+      return Positioned(
+        bottom: 24,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (aftCol.isNotEmpty)
+                Column(mainAxisSize: MainAxisSize.min, children: aftCol.map((b) => Padding(padding: const EdgeInsets.only(bottom: 8), child: b)).toList()),
+              if (aftCol.isNotEmpty && bowCol.isNotEmpty) const SizedBox(width: 24),
+              if (bowCol.isNotEmpty)
+                Column(mainAxisSize: MainAxisSize.min, children: bowCol.map((b) => Padding(padding: const EdgeInsets.only(bottom: 8), child: b)).toList()),
+            ],
+          ),
+        ),
+      );
     }
 
     if (anchorMode) {

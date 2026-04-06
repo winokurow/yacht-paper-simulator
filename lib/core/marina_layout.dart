@@ -90,4 +90,17 @@ class MarinaLayout {
   ) {
     return dockX + edgePaddingPixels + (index * slipStepPixels) + (slipStepPixels / 2);
   }
+
+  /// Два кнехта на вертикальном понтоне: верхний (меньший world Y) и нижний (больший Y).
+  static (Vector2 upper, Vector2 lower) sternFingerDockUpperLowerBollards(Vector2 a, Vector2 b) {
+    return a.y <= b.y ? (a, b) : (b, a);
+  }
+
+  /// Узкая марина, корма к поперечному понтону: кнехты у краёв зелёной зоны по Y —
+  /// портовый швартовой к нижнему, старборд к верхнему (не по «ближайшему» к клепу).
+  static bool narrowSternUsesVerticalFingerBollardPairing(LevelConfig? level) {
+    return level != null &&
+        level.isNarrowMarina &&
+        (level.mooringSetup.hasMooring || level.mooringSetup.hasAnchor);
+  }
 }

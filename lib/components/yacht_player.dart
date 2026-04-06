@@ -8,11 +8,13 @@ import 'package:flame/extensions.dart';
 
 import '../core/constants.dart';
 import '../core/game_events.dart';
+import '../core/marina_layout.dart';
 import '../core/yacht_physics.dart';
 import '../game/yacht_game.dart';
 import '../model/level_config.dart';
 import 'dock_component.dart';
 import 'moored_yacht.dart';
+import 'pile_component.dart';
 
 class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameReference<YachtMasterGame> {
   Sprite? yachtSprite;
@@ -46,6 +48,14 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   bool isAnchorDropped = false;
   Vector2? anchorPosition;
 
+  /// Baltic style (уровень 5): носовые концы к причалу.
+  Vector2? balticBowPortMooredTo;
+  Vector2? balticBowStarboardMooredTo;
+  double? balticBowPortRestLength;
+  double? balticBowStarboardRestLength;
+  bool canMoerBalticBowPort = false;
+  bool canMoerBalticBowStarboard = false;
+
   double? bowRopeRestLength;
   double? sternRopeRestLength;
   double? forwardSpringRestLength;
@@ -58,9 +68,9 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   void Function(GameEvent)? onGameEvent;
 
   late final YachtDynamics _dynamics;
-  /// Для уровня 1 — борт к причалу (отрицательный Y); для уровней 2–3 — как было.
+  /// Alongside (linesOnly) — борт к причалу (отрицательный Y); для остальных — как было.
   double get _ropeBoardOffsetY => size.y * Constants.ropeOffsetFromBoard *
-      (game.currentLevel?.id == 1 ? -1.0 : 1.0);
+      (game.currentLevel?.mooringSetup == MooringSetup.linesOnly ? -1.0 : 1.0);
   /// Точка крепления носового швартового (и носового шпринга).
   Vector2 get _bowRopeLocal => Vector2(
         size.x / 2 - Constants.ropeBowPositionFactor * size.x,
@@ -75,12 +85,16 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   Vector2 get _forwardSpringRopeLocal => _bowRopeLocal;
   /// Кормовой шпринг крепится к той же точке, что и кормовой швартовый.
   Vector2 get _backSpringRopeLocal => _sternRopeLocal;
-  /// Кормовой левый (порт) — для уровня 3: при корме к причалу левый борт → левый кнехт (локально +y).
-  Vector2 get _sternPortRopeLocal => Vector2(-size.x / 2, size.y * Constants.ropeSternEdgeFactor);
-  /// Кормовой правый (старборд) — для уровня 3: правый борт → правый кнехт (локально -y).
-  Vector2 get _sternStarboardRopeLocal => Vector2(-size.x / 2, -size.y * Constants.ropeSternEdgeFactor);
+  /// Кормовой левый (порт) — для уровня 3: при корме к причалу левый борт → левый кнехт (локально -y).
+  Vector2 get _sternPortRopeLocal => Vector2(-size.x / 2, -size.y * Constants.ropeSternEdgeFactor);
+  /// Кормовой правый (старборд) — для уровня 3: правый борт → правый кнехт (локально +y).
+  Vector2 get _sternStarboardRopeLocal => Vector2(-size.x / 2, size.y * Constants.ropeSternEdgeFactor);
   /// Кончик носа (по центру) — точка крепления муринга (ленивого конца) для уровня 3.
   Vector2 get _bowTipLocal => Vector2(size.x / 2, 0);
+  /// Носовой порт (Baltic): крепление на том же X, что и обычный носовой швартовый, левый борт (локально -y).
+  Vector2 get _bowPortRopeLocal => Vector2(_bowRopeLocal.x, -size.y * Constants.ropeSternEdgeFactor);
+  /// Носовой старборд (Baltic): правый борт (локально +y).
+  Vector2 get _bowStarboardRopeLocal => Vector2(_bowRopeLocal.x, size.y * Constants.ropeSternEdgeFactor);
 
   // Геттеры позиций креплений
   Vector2 get bowWorldPosition => localToParent(_bowRopeLocal);
@@ -93,10 +107,15 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   Vector2 get bowLeftWorld  => localToParent(Vector2(size.x / 2, -size.y / 2));
   Vector2 get sternRightWorld => localToParent(_sternStarboardRopeLocal);
   Vector2 get sternLeftWorld  => localToParent(_sternPortRopeLocal);
+  /// Мировые координаты носового порта (Baltic).
+  Vector2 get bowPortWorld => localToParent(_bowPortRopeLocal);
+  /// Мировые координаты носового старборда (Baltic).
+  Vector2 get bowStarboardWorld => localToParent(_bowStarboardRopeLocal);
 
   YachtPlayer({double startAngleDegrees = 0.0}) : super(
     size: Vector2(12.0 * Constants.pixelRatio, 4.0 * Constants.pixelRatio),
     anchor: Anchor.center,
+    priority: Constants.renderPriorityPlayerYacht,
   ) {
     angle = startAngleDegrees * (math.pi / 180);
   }
@@ -228,6 +247,22 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
       velocity += accel;
       velocity *= damping;
     }
+
+    // Baltic style (уровень 5): 2 кормовых к сваям + 2 носовых к причалу.
+    if (game.currentLevel?.mooringSetup.isBaltic == true) {
+      if (sternPortMooredTo != null && sternPortRestLength != null) {
+        _applyMooringPhysics(dt, sternPortMooredTo, _sternPortRopeLocal, sternPortRestLength);
+      }
+      if (sternStarboardMooredTo != null && sternStarboardRestLength != null) {
+        _applyMooringPhysics(dt, sternStarboardMooredTo, _sternStarboardRopeLocal, sternStarboardRestLength);
+      }
+      if (balticBowPortMooredTo != null && balticBowPortRestLength != null) {
+        _applyMooringPhysics(dt, balticBowPortMooredTo, _bowPortRopeLocal, balticBowPortRestLength);
+      }
+      if (balticBowStarboardMooredTo != null && balticBowStarboardRestLength != null) {
+        _applyMooringPhysics(dt, balticBowStarboardMooredTo, _bowStarboardRopeLocal, balticBowStarboardRestLength);
+      }
+    }
   }
 
   @override
@@ -236,10 +271,7 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     if (intersectionPoints.isEmpty) return;
     if (other is Dock) {
       _isTouchingDock = true;
-      position -= velocity * (_lastDt * Constants.pixelRatio);
       _lastDockNormal = _depenetrateFromDock(other);
-      // Не обнулять скорость полностью — иначе яхта «прилипает» и не может отойти.
-      // Убираем только компоненту скорости в направлении причала.
       if (_lastDockNormal != null) {
         final n = _lastDockNormal!;
         final vn = velocity.dot(n);
@@ -248,15 +280,12 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     }
     if (other is MooredYacht) {
       _isTouchingOtherYacht = true;
-      position -= velocity * (_lastDt * Constants.pixelRatio);
-    }    
-
-    if (other is Dock )  {
-      Vector2 forwardDir = Vector2(math.cos(angle), math.sin(angle));
-      Vector2 lateralDir = Vector2(-forwardDir.y, forwardDir.x);
-      double lateralSpeed = velocity.dot(lateralDir);
-      velocity -= lateralDir * lateralSpeed;
     }
+    if (other is PileComponent) {
+      _depenetrateFromPile(other);
+      return;
+    }
+
     final worldCollisionPoint = intersectionPoints.first;
     final localCollisionPoint = parentToLocal(worldCollisionPoint);
     bool isNoseHit = localCollisionPoint.x > (size.x * Constants.noseSectorFactor);
@@ -284,23 +313,20 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   }
 
   /// Депенетрация от причала: сдвиг яхты по нормали столкновения так, чтобы хитбоксы не пересекались.
-  /// Использует AABB яхты и прямоугольник причала. Возвращает нормаль (от причала к яхте) для проекции скорости.
+  /// Использует rotated AABB яхты и прямоугольник причала. Возвращает нормаль (от причала к яхте).
   Vector2? _depenetrateFromDock(Dock dock) {
-    final yl = position.x - size.x / 2;
-    final yr = position.x + size.x / 2;
-    final yt = position.y - size.y / 2;
-    final yb = position.y + size.y / 2;
-    final dl = dock.position.x;
-    final dt = dock.position.y;
-    final dr = dock.position.x + dock.size.x;
-    final db = dock.position.y + dock.size.y;
-    final overlapL = yr - dl;
-    final overlapR = dr - yl;
-    final overlapT = yb - dt;
-    final overlapB = db - yt;
+    final (double yl, double yt, double yr, double yb) = _playerAABB();
+    final double dl = dock.position.x;
+    final double dt_ = dock.position.y;
+    final double dr = dock.position.x + dock.size.x;
+    final double db = dock.position.y + dock.size.y;
+    final double overlapL = yr - dl;
+    final double overlapR = dr - yl;
+    final double overlapT = yb - dt_;
+    final double overlapB = db - yt;
     if (overlapL <= 0 || overlapR <= 0 || overlapT <= 0 || overlapB <= 0) return null;
-    final depthX = overlapL < overlapR ? overlapL : overlapR;
-    final depthY = overlapT < overlapB ? overlapT : overlapB;
+    final double depthX = overlapL < overlapR ? overlapL : overlapR;
+    final double depthY = overlapT < overlapB ? overlapT : overlapB;
     Vector2 push;
     if (depthX <= depthY) {
       push = overlapL < overlapR ? Vector2(-depthX, 0) : Vector2(depthX, 0);
@@ -411,6 +437,31 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     }
   }
 
+  /// Столкновение со сваей: выталкивание по нормали от центра сваи + гашение скорости в сторону столба.
+  void _depenetrateFromPile(PileComponent pile) {
+    final Vector2 pileCenter = pile.position;
+    final double pileR = Constants.pileRadiusPixels;
+    final double yachtR = math.min(size.x, size.y) / 2;
+    final Vector2 diff = position - pileCenter;
+    final double dist = diff.length;
+    if (dist < 1e-6) {
+      position += Vector2(0, -(pileR + yachtR));
+      velocity = Vector2.zero();
+      return;
+    }
+    final Vector2 normal = diff / dist;
+    final double overlap = (pileR + yachtR) - dist;
+    if (overlap > 0) {
+      position += normal * overlap;
+    }
+    final double vn = velocity.dot(normal);
+    if (vn < 0) {
+      velocity -= normal * vn;
+      velocity *= Constants.collisionRestitution;
+    }
+    angularVelocity *= Constants.collisionAngularDamping;
+  }
+
   /// Контакт с другой яхтой (MooredYacht): депенетрация по AABB и гашение скорости по нормали.
   /// Не подменяем скорость на pivot и не гасим угловую каждый кадр — иначе яхта «прилипает».
   void _depenetrateAndCancelNormalVelocity(Vector2 collisionMid, PositionComponent other) {
@@ -421,21 +472,30 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     }
   }
 
-  /// Депенетрация от другой яхты (MooredYacht) по AABB. Игровая яхта — повёрнутый прямоугольник.
-  /// Возвращает нормаль (от MooredYacht к игроку) для гашения скорости.
+  /// Депенетрация от другой яхты (MooredYacht) по AABB.
+  /// Учитывает поворот обоих объектов. Возвращает нормаль (от MooredYacht к игроку).
   Vector2? _depenetrateFromMooredYacht(PositionComponent other) {
     final (double yl, double yt, double yr, double yb) = _playerAABB();
-    final ol = other.position.x - other.size.x / 2;
-    final ot = other.position.y - other.size.y / 2;
-    final or = other.position.x + other.size.x / 2;
-    final ob = other.position.y + other.size.y / 2;
-    final overlapL = yr - ol;
-    final overlapR = or - yl;
-    final overlapT = yb - ot;
-    final overlapB = ob - yt;
+
+    // AABB пришвартованной яхты с учётом её поворота.
+    final double cosO = math.cos(other.angle).abs();
+    final double sinO = math.sin(other.angle).abs();
+    final double ohx = other.size.x / 2;
+    final double ohy = other.size.y / 2;
+    final double oxExt = ohx * cosO + ohy * sinO;
+    final double oyExt = ohx * sinO + ohy * cosO;
+    final double ol = other.position.x - oxExt;
+    final double ot = other.position.y - oyExt;
+    final double or_ = other.position.x + oxExt;
+    final double ob = other.position.y + oyExt;
+
+    final double overlapL = yr - ol;
+    final double overlapR = or_ - yl;
+    final double overlapT = yb - ot;
+    final double overlapB = ob - yt;
     if (overlapL <= 0 || overlapR <= 0 || overlapT <= 0 || overlapB <= 0) return null;
-    final depthX = overlapL < overlapR ? overlapL : overlapR;
-    final depthY = overlapT < overlapB ? overlapT : overlapB;
+    final double depthX = overlapL < overlapR ? overlapL : overlapR;
+    final double depthY = overlapT < overlapB ? overlapT : overlapB;
     Vector2 push;
     if (depthX <= depthY) {
       push = overlapL < overlapR ? Vector2(-depthX, 0) : Vector2(depthX, 0);
@@ -519,16 +579,50 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
   void _checkMooringConditions() {
     if (game.dock == null) return;
     final d = game.dock!;
-    if (d.bollardXPositions.isEmpty) return;
-
-    final double bollardY = d.position.y + (d.size.y * Dock.bollardYFactor);
-    final List<Vector2> bollards = d.bollardXPositions.map((x) => Vector2(d.position.x + x, bollardY)).toList();
-    if (bollards.isEmpty) return;
-
     final int lineCount = game.currentLevel?.mooringLinesCount ?? 2;
-    final threshold = Constants.mooringBollardProximityPixels;
     final bool speedOk = velocity.length < Constants.mooringSpeedThresholdPixels;
     final bool hasMooring = game.currentLevel?.mooringSetup.hasMooring == true;
+
+    // Baltic style (уровень 5): только сваи, кнехты не используются; каждая кнопка — по расстоянию до своей сваи.
+    if (game.currentLevel?.mooringSetup.isBaltic == true && game.pilePositionsPixels.length >= 4) {
+      if (sternPortMooredTo != null && sternStarboardMooredTo != null &&
+          balticBowPortMooredTo != null && balticBowStarboardMooredTo != null) {
+        game.hideMooringButtons();
+        return;
+      }
+      canMoerBow = false;
+      canMoerStern = false;
+      canMoerForwardSpring = false;
+      canMoerBackSpring = false;
+      canMoerLazyLine = false;
+
+      final double pileThreshold = Constants.pileMooringProximityPixels;
+      final Vector2 mSternPort = sternLeftWorld;
+      final Vector2 mSternStarboard = sternRightWorld;
+      canMoerSternPort = mSternPort.distanceTo(game.pilePositionsPixels[0]) < pileThreshold && speedOk && sternPortMooredTo == null;
+      canMoerSternStarboard = mSternStarboard.distanceTo(game.pilePositionsPixels[1]) < pileThreshold && speedOk && sternStarboardMooredTo == null;
+
+      final Vector2 mBowPort = bowPortWorld;
+      final Vector2 mBowStarboard = bowStarboardWorld;
+      canMoerBalticBowPort = mBowPort.distanceTo(game.pilePositionsPixels[2]) < pileThreshold && speedOk && balticBowPortMooredTo == null;
+      canMoerBalticBowStarboard = mBowStarboard.distanceTo(game.pilePositionsPixels[3]) < pileThreshold && speedOk && balticBowStarboardMooredTo == null;
+
+      final bool showAftPort = canMoerSternPort || sternPortMooredTo != null;
+      final bool showAftStarboard = canMoerSternStarboard || sternStarboardMooredTo != null;
+      final bool showBowPort = canMoerBalticBowPort || balticBowPortMooredTo != null;
+      final bool showBowStarboard = canMoerBalticBowStarboard || balticBowStarboardMooredTo != null;
+      if (showAftPort || showAftStarboard || showBowPort || showBowStarboard) {
+        game.showMooringButtonsBaltic(showAftPort, showAftStarboard, showBowPort, showBowStarboard);
+      } else {
+        game.hideMooringButtons();
+      }
+      return;
+    }
+
+    final List<Vector2> bollards = d.bollardWorldPositions;
+    if (bollards.isEmpty) return;
+
+    final double threshold = Constants.mooringBollardProximityPixels;
 
     if (lineCount >= 4 && bollards.length >= 4) {
       Vector2 mBow = localToParent(_bowRopeLocal);
@@ -555,8 +649,19 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
 
       final Vector2 mSternPort = sternLeftWorld;
       final Vector2 mSternStarboard = sternRightWorld;
-      canMoerSternPort = mSternPort.distanceTo(bollards[0]) < threshold && speedOk && sternPortMooredTo == null;
-      canMoerSternStarboard = mSternStarboard.distanceTo(bollards[1]) < threshold && speedOk && sternStarboardMooredTo == null;
+      if (MarinaLayout.narrowSternUsesVerticalFingerBollardPairing(game.currentLevel)) {
+        final (upper, lower) = MarinaLayout.sternFingerDockUpperLowerBollards(bollards[0], bollards[1]);
+        canMoerSternPort = mSternPort.distanceTo(lower) < threshold && speedOk && sternPortMooredTo == null;
+        canMoerSternStarboard =
+            mSternStarboard.distanceTo(upper) < threshold && speedOk && sternStarboardMooredTo == null;
+      } else {
+        final double pD0 = mSternPort.distanceTo(bollards[0]);
+        final double pD1 = mSternPort.distanceTo(bollards[1]);
+        canMoerSternPort = math.min(pD0, pD1) < threshold && speedOk && sternPortMooredTo == null;
+        final double sD0 = mSternStarboard.distanceTo(bollards[0]);
+        final double sD1 = mSternStarboard.distanceTo(bollards[1]);
+        canMoerSternStarboard = math.min(sD0, sD1) < threshold && speedOk && sternStarboardMooredTo == null;
+      }
 
       final bool showSternPort = canMoerSternPort || sternPortMooredTo != null;
       final bool showSternStarboard = canMoerSternStarboard || sternStarboardMooredTo != null;
@@ -580,9 +685,19 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
       canMoerStern = false;
       canMoerForwardSpring = false;
       canMoerBackSpring = false;
-      // Левый борт (порт) → левый кнехт [0], правый (старборд) → правый кнехт [1].
-      canMoerSternPort = mSternPort.distanceTo(bollards[0]) < threshold && speedOk && sternPortMooredTo == null;
-      canMoerSternStarboard = mSternStarboard.distanceTo(bollards[1]) < threshold && speedOk && sternStarboardMooredTo == null;
+      if (MarinaLayout.narrowSternUsesVerticalFingerBollardPairing(game.currentLevel)) {
+        final (upper, lower) = MarinaLayout.sternFingerDockUpperLowerBollards(bollards[0], bollards[1]);
+        canMoerSternPort = mSternPort.distanceTo(lower) < threshold && speedOk && sternPortMooredTo == null;
+        canMoerSternStarboard =
+            mSternStarboard.distanceTo(upper) < threshold && speedOk && sternStarboardMooredTo == null;
+      } else {
+        final double portD0 = mSternPort.distanceTo(bollards[0]);
+        final double portD1 = mSternPort.distanceTo(bollards[1]);
+        canMoerSternPort = math.min(portD0, portD1) < threshold && speedOk && sternPortMooredTo == null;
+        final double stbdD0 = mSternStarboard.distanceTo(bollards[0]);
+        final double stbdD1 = mSternStarboard.distanceTo(bollards[1]);
+        canMoerSternStarboard = math.min(stbdD0, stbdD1) < threshold && speedOk && sternStarboardMooredTo == null;
+      }
       final double anchorThreshold = Constants.mooringAnchorProximityPixels;
       canMoerLazyLine = mBowTip.distanceTo(game.mooringAnchorPositionPixels!) < anchorThreshold && speedOk && lazyLineAnchor == null;
 
@@ -597,20 +712,24 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
         game.hideMooringButtons();
       }
       return;
-    } else {
-      Vector2 mBowR = localToParent(Vector2(size.x * 0.4, size.y * 0.35));
-      Vector2 mBowL = localToParent(Vector2(size.x * 0.4, -size.y * 0.35));
-      Vector2 mSternR = localToParent(Vector2(-size.x * 0.4, size.y * 0.35));
-      Vector2 mSternL = localToParent(Vector2(-size.x * 0.4, -size.y * 0.35));
-      double dBow = bollards.map((b) => math.min(mBowR.distanceTo(b), mBowL.distanceTo(b))).reduce(math.min);
-      double dStern = bollards.map((b) => math.min(mSternR.distanceTo(b), mSternL.distanceTo(b))).reduce(math.min);
-      canMoerBow = dBow < threshold && speedOk && bowMooredTo == null;
-      canMoerStern = dStern < threshold && speedOk && sternMooredTo == null;
+    } else if (bollards.length >= 2) {
+      // Классическая швартовка (2 линии): кнопка появляется только у соответствующего кнехта.
+      final Vector2 mBow = localToParent(_bowRopeLocal);
+      final Vector2 mStern = localToParent(_sternRopeLocal);
+      final Vector2 bowBollard = mBow.distanceTo(bollards[0]) <= mBow.distanceTo(bollards[1]) ? bollards[0] : bollards[1];
+      final Vector2 sternBollard = bowBollard == bollards[0] ? bollards[1] : bollards[0];
+      canMoerBow = mBow.distanceTo(bowBollard) < threshold && speedOk && bowMooredTo == null;
+      canMoerStern = mStern.distanceTo(sternBollard) < threshold && speedOk && sternMooredTo == null;
       canMoerForwardSpring = false;
       canMoerBackSpring = false;
       canMoerSternPort = false;
       canMoerSternStarboard = false;
       canMoerLazyLine = false;
+    } else {
+      canMoerBow = false;
+      canMoerStern = false;
+      canMoerForwardSpring = false;
+      canMoerBackSpring = false;
     }
 
     final bool showBow = canMoerBow || bowMooredTo != null;
@@ -651,7 +770,9 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
         sternPortMooredTo != null ||
         sternStarboardMooredTo != null ||
         lazyLineAnchor != null ||
-        isAnchorDropped;
+        isAnchorDropped ||
+        balticBowPortMooredTo != null ||
+        balticBowStarboardMooredTo != null;
   }
 
   void resetToInitialState() {
@@ -664,8 +785,14 @@ class YachtPlayer extends PositionComponent with CollisionCallbacks, HasGameRefe
     targetRudderAngle = 0.0;
     bowMooredTo = sternMooredTo = forwardSpringMooredTo = backSpringMooredTo = null;
     bowRopeRestLength = sternRopeRestLength = forwardSpringRestLength = backSpringRestLength = null;
+    sternPortMooredTo = sternStarboardMooredTo = null;
+    sternPortRestLength = sternStarboardRestLength = null;
+    lazyLineAnchor = null;
+    lazyLineRestLength = null;
     isAnchorDropped = false;
     anchorPosition = null;
+    balticBowPortMooredTo = balticBowStarboardMooredTo = null;
+    balticBowPortRestLength = balticBowStarboardRestLength = null;
   }
 
   @override

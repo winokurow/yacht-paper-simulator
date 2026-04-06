@@ -296,4 +296,105 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get statusAnchorDropped => 'Якорь отдан!';
+
+  @override
+  String get level5Name => 'Балтийская швартовка';
+
+  @override
+  String get level5Description =>
+      'Войдите носом между четырёх свай и закрепите носовые на причале.';
+
+  @override
+  String get mooringAftPilePort => 'КОРМ. ЛЕВАЯ СВАЯ';
+
+  @override
+  String get mooringAftPileStarboard => 'КОРМ. ПРАВАЯ СВАЯ';
+
+  @override
+  String get mooringBowPort => 'НОСОВОЙ ЛЕВЫЙ';
+
+  @override
+  String get mooringBowStarboard => 'НОСОВОЙ ПРАВЫЙ';
+
+  @override
+  String get mooringGiveAftPilePort => 'Отдать кормовую левую сваю';
+
+  @override
+  String get mooringGiveAftPileStarboard => 'Отдать кормовую правую сваю';
+
+  @override
+  String get mooringGiveBowPort => 'Отдать носовой левый';
+
+  @override
+  String get mooringGiveBowStarboard => 'Отдать носовой правый';
+
+  @override
+  String get level6Name => 'Узкая марина — лагом';
+
+  @override
+  String get level6Description =>
+      'Проведите яхту по узкому каналу между лодками и пришвартуйтесь лагом.';
+
+  @override
+  String get level7Name => 'Узкая марина — кормой с мурингом';
+
+  @override
+  String get level7Description =>
+      'Пройдите канал и встаньте кормой к причалу с мурингом. Сильный боковой ветер.';
+
+  @override
+  String get level8Name => 'Узкая марина — кормой с якорем';
+
+  @override
+  String get level8Description =>
+      'Сбросьте якорь в канале, подойдите задним ходом к причалу и закрепите два кормовых.';
+
+  @override
+  String get level9Name => 'Узкая марина — балтийская';
+
+  @override
+  String get level9Description =>
+      'Войдите носом в узкий канал и закрепите все четыре конца на сваях.';
+
+  @override
+  String get levelInstructionTitle => 'Инструкция к уровню';
+
+  @override
+  String get levelInstructionTooltip => 'Подсказка по уровню';
+
+  @override
+  String get levelInstruction1 =>
+      '• W/S — газ, A/D — руль.\n• Зайдите в зелёную зону между яхтами и остановитесь у тумб носом и кормой.\n• Когда появятся кнопки, отдайте носовой и кормовой швартовые.\n• Победа: оба конца закреплены, малая скорость.';
+
+  @override
+  String get levelInstruction2 =>
+      '• Старт с уже заведёнными четырьмя концами.\n• Отдайте нос, корму и оба шпринга, когда готовы к отходу.\n• Победа: все концы свободны и яхта покинула зелёную зону.';
+
+  @override
+  String get levelInstruction3 =>
+      '• Кормой к причалу: буй муринга напротив зелёной зоны.\n• Закрепите кормовые порт и старборд, затем ленивый конец к бую.\n• Победа: оба кормовых и муринг, нужный курс, почти остановка.';
+
+  @override
+  String get levelInstruction4 =>
+      '• Войдите в зелёный круг и отдайте якорь по кнопке.\n• Задним ходом к причалу и два кормовых на тумбы.\n• Победа: якорь отдан, оба кормовых, курс и малая скорость.';
+
+  @override
+  String get levelInstruction5 =>
+      '• Носом между четырьмя сваями; кормовые — к задним сваям, носовые — к тумбам на причале.\n• Обычно: сначала корма, потом нос.\n• Победа: четыре конца, нос перпендикулярен причалу, остановка.';
+
+  @override
+  String get levelInstruction6 =>
+      '• Пройдите узкий канал, не задевая яхты.\n• Встаньте лагом у правого понтона; зелёный прямоугольник — место стоянки.\n• Победа: нос и корма на швартовых, малая скорость.';
+
+  @override
+  String get levelInstruction7 =>
+      '• Пройдите канал, развернитесь кормой к правому понтону.\n• Буй напротив зелёной зоны: сначала кормовые, затем ленивый конец.\n• Победа: оба кормовых и муринг, курс и скорость в норме.';
+
+  @override
+  String get levelInstruction8 =>
+      '• Сбросьте якорь в зелёном кольце в канале, затем задним ходом к причалу.\n• Два кормовых: порт к нижнему тумбе, старборд к верхнему вдоль понтона.\n• Победа: якорь, оба кормовых, курс, остановка.';
+
+  @override
+  String get levelInstruction9 =>
+      '• Носом в слот; четыре сваи по углам зелёной зоны — не наезжайте на них.\n• Кормовые к сваям со стороны канала, носовые к сваям у причала.\n• Победа: четыре конца, нос к понтону, остановка.';
 }

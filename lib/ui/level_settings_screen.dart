@@ -26,7 +26,7 @@ class _LevelSettingsScreenState extends State<LevelSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    windMult = 1.0;
+    windMult = 0.0;
     windDirectionDeg = _radToDeg(widget.level.defaultWindDirection);
     currentSpeed = widget.level.defaultCurrentSpeed;
     currentDirectionDeg = _radToDeg(widget.level.currentDirection);

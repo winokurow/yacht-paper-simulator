@@ -15,6 +15,8 @@ enum MooringSetup {
   linesAndAnchor,
   /// Четыре швартовых.
   fourLines,
+  /// Baltic style: нос к причалу (2 носовых к тумбам) + корма к сваям (2 кормовых к сваям).
+  balticStyle,
 }
 
 extension MooringSetupExtension on MooringSetup {
@@ -25,6 +27,7 @@ extension MooringSetupExtension on MooringSetup {
         MooringSetup.linesAndMooring => 3,
         MooringSetup.linesAndAnchor => 2,
         MooringSetup.fourLines => 4,
+        MooringSetup.balticStyle => 4,
       };
   /// Есть ли шпринги (показ кнопок шпрингов, 4 позиции тумб).
   bool get hasSprings => this == MooringSetup.linesAndSprings;
@@ -32,6 +35,8 @@ extension MooringSetupExtension on MooringSetup {
   bool get hasMooring => this == MooringSetup.linesAndMooring;
   /// Швартовка кормой с якорем: сброс якоря + 2 кормовых к причалу.
   bool get hasAnchor => this == MooringSetup.linesAndAnchor;
+  /// Baltic style: нос к причалу + корма к сваям (4 конца).
+  bool get isBaltic => this == MooringSetup.balticStyle;
 }
 
 /// Возвращает локализованное название уровня. Для неизвестного id — [level.name].
@@ -45,6 +50,16 @@ String levelLocalizedName(AppLocalizations l10n, LevelConfig level) {
       return l10n.level3Name;
     case 4:
       return l10n.level4Name;
+    case 5:
+      return l10n.level5Name;
+    case 6:
+      return l10n.level6Name;
+    case 7:
+      return l10n.level7Name;
+    case 8:
+      return l10n.level8Name;
+    case 9:
+      return l10n.level9Name;
     default:
       return level.name;
   }
@@ -61,8 +76,44 @@ String levelLocalizedDescription(AppLocalizations l10n, LevelConfig level) {
       return l10n.level3Description;
     case 4:
       return l10n.level4Description;
+    case 5:
+      return l10n.level5Description;
+    case 6:
+      return l10n.level6Description;
+    case 7:
+      return l10n.level7Description;
+    case 8:
+      return l10n.level8Description;
+    case 9:
+      return l10n.level9Description;
     default:
       return level.description;
+  }
+}
+
+/// Возвращает локализованную инструкцию по уровню (для диалога в игре).
+String levelLocalizedInstruction(AppLocalizations l10n, LevelConfig level) {
+  switch (level.id) {
+    case 1:
+      return l10n.levelInstruction1;
+    case 2:
+      return l10n.levelInstruction2;
+    case 3:
+      return l10n.levelInstruction3;
+    case 4:
+      return l10n.levelInstruction4;
+    case 5:
+      return l10n.levelInstruction5;
+    case 6:
+      return l10n.levelInstruction6;
+    case 7:
+      return l10n.levelInstruction7;
+    case 8:
+      return l10n.levelInstruction8;
+    case 9:
+      return l10n.levelInstruction9;
+    default:
+      return levelLocalizedDescription(l10n, level);
   }
 }
 
@@ -111,6 +162,11 @@ class LevelConfig {
   final List<double>? bollardPositionFactors;
   /// Центр зоны сброса якоря (метры). Только для [MooringSetup.linesAndAnchor].
   final Vector2? anchorDropZoneCenterMeters;
+  /// Позиции свай (метры). Порядок: [aft port, aft starboard, fwd port, fwd starboard].
+  /// Только для [MooringSetup.balticStyle].
+  final List<Vector2>? pilePositionsMeters;
+  /// Узкая марина: канал с препятствиями (MooredYacht) по бокам.
+  final bool isNarrowMarina;
 
   LevelConfig({
     required this.id,
@@ -133,6 +189,8 @@ class LevelConfig {
     this.greenZoneWidthInYachtWidths,
     this.bollardPositionFactors,
     this.anchorDropZoneCenterMeters,
+    this.pilePositionsMeters,
+    this.isNarrowMarina = false,
   });
 
   final int targetSlotIndex;
@@ -253,5 +311,130 @@ class GameLevels {
         BoatPlacement(type: 'boat', width: 10.0, length: 20.0, sprite: 'yacht_large.png', isNoseRight: true),
       ],
     ),
+
+    // УРОВЕНЬ 5: Baltic style — нос к причалу, корма к сваям (4 конца)
+    LevelConfig(
+      id: 5,
+      name: "Baltic Mooring",
+      description: "Moor bow-first between four piles, then secure bow lines to the dock.",
+      envType: EnvironmentType.marina,
+      startPos: Vector2(190, 60),
+      startAngle: -90,
+      defaultWindSpeed: 2.0,
+      defaultWindDirection: 0.0,
+      mooringSetup: MooringSetup.balticStyle,
+      bollardCount: 2,
+      targetAngleDegrees: -90,
+      greenZoneWidthInYachtWidths: 2.0,
+      bollardPositionFactors: [0.35, 0.65],
+      // Порядок: [aft port, aft starboard, fwd port, fwd starboard]
+      // Сваи формируют «коробку» вокруг слота: кормовые сваи дальше от причала, носовые — ближе.
+      pilePositionsMeters: [
+        Vector2(193, 22), // aft port
+        Vector2(199, 22), // aft starboard
+        Vector2(193, 10), // fwd port
+        Vector2(199, 10), // fwd starboard
+      ],
+      marinaLayout: [
+        BoatPlacement(type: 'boat', width: 3.0, length: 8.0, sprite: 'yacht_small.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),
+        BoatPlacement(type: 'boat', width: 5.0, length: 10.0, sprite: 'yacht_motor.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 3.0, length: 8.0, sprite: 'yacht_small.png', isNoseRight: false),
+        BoatPlacement(type: 'player_slot'),
+        BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: false),
+        BoatPlacement(type: 'boat', width: 3.0, length: 9.0, sprite: 'yacht_small.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 5.0, length: 10.0, sprite: 'yacht_motor.png', isNoseRight: false),
+        BoatPlacement(type: 'boat', width: 4.0, length: 12.0, sprite: 'yacht_medium.png', isNoseRight: true),
+        BoatPlacement(type: 'boat', width: 10.0, length: 20.0, sprite: 'yacht_large.png', isNoseRight: true),
+      ],
+    ),
+
+    // ===== NARROW MARINA =====
+    // Компактная раскладка для узких уровней (5 слотов, игрок по центру).
+    // Механика швартовки идентична базовому уровню.
+
+    // УРОВЕНЬ 6: Level 1 mechanics (alongside) + Narrow Marina
+    LevelConfig(
+      id: 6,
+      name: 'Narrow Alongside',
+      description: 'Navigate a tight channel lined with moored yachts and park alongside.',
+      envType: EnvironmentType.marina,
+      startPos: Vector2(170, 100),
+      startAngle: 0,
+      defaultWindSpeed: 6.0,
+      defaultWindDirection: 0.0,
+      defaultCurrentSpeed: 0.3,
+      currentDirection: -1.57,
+      mooringSetup: MooringSetup.linesOnly,
+      isNarrowMarina: true,
+      marinaLayout: _narrowMarinaLayout,
+    ),
+
+    // УРОВЕНЬ 7: Level 3 mechanics (stern-to + mooring) + Narrow Marina
+    LevelConfig(
+      id: 7,
+      name: 'Narrow Stern-to Mooring',
+      description: 'Thread the channel and moor stern-to with a mooring line.',
+      envType: EnvironmentType.marina,
+      startPos: Vector2(180, 100),
+      startAngle: 0,
+      defaultWindSpeed: 5.0,
+      defaultWindDirection: 0.0,
+      mooringSetup: MooringSetup.linesAndMooring,
+      bollardCount: 2,
+      bollardPositionFactors: [0.35, 0.65],
+      // Якорь муринга задаётся в [YachtMasterGame] напротив зелёной зоны (см. _setupMarinaLayout).
+      // Корма к правому вертикальному пирсу: нос влево (forward = (-1,0) → 180°), не 90° как у верхнего причала.
+      targetAngleDegrees: 180,
+      greenZoneWidthInYachtWidths: 2.0,
+      isNarrowMarina: true,
+      marinaLayout: _narrowMarinaLayout,
+    ),
+
+    // УРОВЕНЬ 8: Level 4 mechanics (stern-to + anchor) + Narrow Marina
+    LevelConfig(
+      id: 8,
+      name: 'Narrow Stern-to Anchor',
+      description: 'Drop anchor in the channel, then reverse to pier and secure two stern lines.',
+      envType: EnvironmentType.marina,
+      startPos: Vector2(180, 100),
+      startAngle: 0,
+      defaultWindSpeed: 4.0,
+      defaultWindDirection: 0.0,
+      mooringSetup: MooringSetup.linesAndAnchor,
+      bollardCount: 2,
+      bollardPositionFactors: [0.35, 0.65],
+      // Центр зоны сброса якоря — в [YachtMasterGame] напротив зелёной зоны (см. _setupMarinaLayout).
+      targetAngleDegrees: 180,
+      greenZoneWidthInYachtWidths: 2.0,
+      isNarrowMarina: true,
+      marinaLayout: _narrowMarinaLayout,
+    ),
+
+    // УРОВЕНЬ 9: Level 5 mechanics (bow-to + 4 piles) + Narrow Marina
+    LevelConfig(
+      id: 9,
+      name: 'Narrow Baltic Mooring',
+      description: 'Enter a narrow channel bow-first and secure all four lines to piles.',
+      envType: EnvironmentType.marina,
+      startPos: Vector2(180, 100),
+      startAngle: 0,
+      defaultWindSpeed: 3.0,
+      defaultWindDirection: 0.0,
+      mooringSetup: MooringSetup.balticStyle,
+      bollardCount: 2,
+      bollardPositionFactors: [0.35, 0.65],
+      // Нос к правому понтону (как [startAngle] 0°), не -90° как у ур. 5 с горизонтальным причалом.
+      targetAngleDegrees: 0,
+      greenZoneWidthInYachtWidths: 2.0,
+      // Позиции свай задаются в [YachtMasterGame] по прямоугольнику зелёной зоны узкой марины.
+      isNarrowMarina: true,
+      marinaLayout: _narrowMarinaLayout,
+    ),
+  ];
+
+  static final List<BoatPlacement> _narrowMarinaLayout = [
+
+    BoatPlacement(type: 'player_slot'),
   ];
 }

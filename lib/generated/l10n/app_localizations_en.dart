@@ -296,4 +296,105 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusAnchorDropped => 'Anchor dropped!';
+
+  @override
+  String get level5Name => 'Baltic Mooring';
+
+  @override
+  String get level5Description =>
+      'Moor bow-first between four piles, then secure bow lines to the dock.';
+
+  @override
+  String get mooringAftPilePort => 'AFT PORT PILE';
+
+  @override
+  String get mooringAftPileStarboard => 'AFT STBD PILE';
+
+  @override
+  String get mooringBowPort => 'BOW PORT';
+
+  @override
+  String get mooringBowStarboard => 'BOW STARBOARD';
+
+  @override
+  String get mooringGiveAftPilePort => 'Release aft port pile';
+
+  @override
+  String get mooringGiveAftPileStarboard => 'Release aft stbd pile';
+
+  @override
+  String get mooringGiveBowPort => 'Release bow port';
+
+  @override
+  String get mooringGiveBowStarboard => 'Release bow starboard';
+
+  @override
+  String get level6Name => 'Narrow Alongside';
+
+  @override
+  String get level6Description =>
+      'Navigate a tight channel lined with moored yachts and park alongside.';
+
+  @override
+  String get level7Name => 'Narrow Stern-to Mooring';
+
+  @override
+  String get level7Description =>
+      'Thread the channel and moor stern-to with a mooring line. Strong side wind.';
+
+  @override
+  String get level8Name => 'Narrow Stern-to Anchor';
+
+  @override
+  String get level8Description =>
+      'Drop anchor in the channel, then reverse to the pier and secure two stern lines.';
+
+  @override
+  String get level9Name => 'Narrow Baltic Mooring';
+
+  @override
+  String get level9Description =>
+      'Enter a narrow channel bow-first and secure all four lines to the piles.';
+
+  @override
+  String get levelInstructionTitle => 'Level briefing';
+
+  @override
+  String get levelInstructionTooltip => 'Instructions for this level';
+
+  @override
+  String get levelInstruction1 =>
+      '• W/S — throttle, A/D — rudder.\n• Move into the green berth between moored yachts and stop with bow and stern near the bollards.\n• When the buttons appear, give bow and stern lines.\n• Win: both lines secured and low speed.';
+
+  @override
+  String get levelInstruction2 =>
+      '• You start with four lines already made fast.\n• Release bow, stern, and both springs when you are ready to depart.\n• Win: all lines are free and the yacht has left the green zone.';
+
+  @override
+  String get levelInstruction3 =>
+      '• Stern-to: approach the pier astern; the mooring buoy lies opposite the green zone.\n• Secure stern port and stern starboard, then the lazy line to the buoy.\n• Win: both stern lines and the lazy line secured, correct heading, nearly stopped.';
+
+  @override
+  String get levelInstruction4 =>
+      '• Enter the green anchor circle and drop anchor when prompted.\n• Back toward the pier and secure two stern lines to the bollards.\n• Win: anchor down, both stern lines fast, correct heading, low speed.';
+
+  @override
+  String get levelInstruction5 =>
+      '• Bow-first between the four piles. Aft lines to the aft piles; bow lines to the dock bollards.\n• Typical order: aft port and starboard, then bow port and starboard.\n• Win: all four lines, bow perpendicular to the dock, stopped.';
+
+  @override
+  String get levelInstruction6 =>
+      '• Thread the narrow channel without hitting moored yachts.\n• Park alongside the right finger; the green rectangle is your berth.\n• Win: bow and stern lines secured, low speed.';
+
+  @override
+  String get levelInstruction7 =>
+      '• Pass the channel, then reverse stern-to to the right finger.\n• Mooring buoy mirrors the green zone; stern lines first, then the lazy line to the buoy.\n• Win: both sterns and lazy line secured, heading and speed in range.';
+
+  @override
+  String get levelInstruction8 =>
+      '• Drop anchor inside the green ring in the channel, then reverse to the pier.\n• Two stern lines: port to the lower bollard, starboard to the upper (along the finger).\n• Win: anchor down, both sterns fast, correct heading, stopped.';
+
+  @override
+  String get levelInstruction9 =>
+      '• Bow-first into the slot; four piles sit at the green zone corners — do not ram them.\n• Aft lines to the channel-side piles, bow lines to the pier-side piles.\n• Win: all four lines, bow toward the finger, stopped.';
 }

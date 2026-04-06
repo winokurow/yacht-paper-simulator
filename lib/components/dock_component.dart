@@ -10,6 +10,21 @@ class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
   late Paint _dockPaint;
   final List<double> bollardXPositions;
 
+  /// Произвольные 2D-позиции кнехтов (локальные координаты причала).
+  /// Если задано — используется вместо [bollardXPositions] + [bollardYFactor].
+  final List<Vector2>? bollardLocalPositions;
+
+  /// Мировые координаты всех кнехтов (вычисляются из [bollardLocalPositions] или [bollardXPositions]).
+  List<Vector2> get bollardWorldPositions {
+    if (bollardLocalPositions != null && bollardLocalPositions!.isNotEmpty) {
+      return bollardLocalPositions!
+          .map((p) => Vector2(position.x + p.x, position.y + p.y))
+          .toList();
+    }
+    final double posY = position.y + size.y * bollardYFactor;
+    return bollardXPositions.map((x) => Vector2(position.x + x, posY)).toList();
+  }
+
   // Оптимизированные краски
   static final Paint _bollardBasePaint = Paint()..color = Colors.grey[800]!;
   static final Paint _bollardTopPaint = Paint()..color = Colors.grey[600]!;
@@ -22,6 +37,7 @@ class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
 
   Dock({
     required this.bollardXPositions,
+    this.bollardLocalPositions,
     required Vector2 position,
     required Vector2 size,
   }) : super(position: position, size: size) {
@@ -101,17 +117,30 @@ class Dock extends PositionComponent with HasGameReference<YachtMasterGame> {
 
     // Тумбы
     final double bollardRadius = size.y * 0.08;
-    final double posY = size.y * bollardYFactor;
 
-    for (final xPos in bollardXPositions) {
-      final pos = Offset(xPos, posY);
-      canvas.drawCircle(
-          pos.translate(2, 2),
-          bollardRadius,
-          Paint()..color = Colors.black.withOpacity(0.3)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0)
-      );
-      canvas.drawCircle(pos, bollardRadius, _bollardBasePaint);
-      canvas.drawCircle(pos, bollardRadius * 0.7, _bollardTopPaint);
+    final List<Offset> bollardOffsets;
+    if (bollardLocalPositions != null && bollardLocalPositions!.isNotEmpty) {
+      final double r = bollardRadius.clamp(4.0, 12.0);
+      bollardOffsets = bollardLocalPositions!.map((p) => Offset(p.x, p.y)).toList();
+      for (final pos in bollardOffsets) {
+        canvas.drawCircle(
+            pos.translate(2, 2), r,
+            Paint()..color = Colors.black.withOpacity(0.3)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0),
+        );
+        canvas.drawCircle(pos, r, _bollardBasePaint);
+        canvas.drawCircle(pos, r * 0.7, _bollardTopPaint);
+      }
+    } else {
+      final double posY = size.y * bollardYFactor;
+      for (final xPos in bollardXPositions) {
+        final pos = Offset(xPos, posY);
+        canvas.drawCircle(
+            pos.translate(2, 2), bollardRadius,
+            Paint()..color = Colors.black.withOpacity(0.3)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0),
+        );
+        canvas.drawCircle(pos, bollardRadius, _bollardBasePaint);
+        canvas.drawCircle(pos, bollardRadius * 0.7, _bollardTopPaint);
+      }
     }
   }
 }
